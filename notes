@@ -1,0 +1,17 @@
+Computational Chemistry Programmin Project
+
+Inés Sánchez de Movellán
+
+04/11/2020
+- Programming language: FORTRAN 90
+- Monte Carlo algorithm for displacements
+- Serial code version
+- Then: paralelization and molecular dynamics simulation
+
+- Read information
+- Create github repository to upload the code
+- Create a main program main.f90
+- Create a module to perform the simulation: 
+- Create a makefile to compile and execute the code
+
+
