@@ -11,7 +11,18 @@ Inés Sánchez de Movellán
 - Read information
 - Create github repository to upload the code
 - Create a main program main.f90
-- Create a module to perform the simulation: 
+- Create a module to perform the simulation
 - Create a makefile to compile and execute the code
-
+Inside the module, we have create the initial_geom(n,L,geom0) subroutine, which allows to create
+the initial geometry of the system setting (at least now) a random distribution of the particles.
+The geometry is written in an xyz file that could be read with avogadro. On the other hand,
+we have done an algorithim with 2 do loops to calculate the square of the inter-particle 
+distance among all particles. To do that, we store the distances in a matrix in which the
+off diagonal elements are zero: 
+r12 r13 r14 r15 ... r1n
+0   r23 r24 r25 ... r2n
+0   0   r34 r35 ... r3n
+0   0    0   :       :
+:   :    :   :       :
+0   0    0   0  ... rnn
 
