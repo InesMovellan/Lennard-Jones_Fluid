@@ -12,16 +12,15 @@ program main
     implicit none
     integer :: n, L
     real(kind=8), allocatable :: coord(:,:)
-    real(kind=8), allocatable :: dist(:)
-    real(kind=8) :: r
+    real(kind=8), allocatable :: dist(:,:)
+    real(kind=8) :: V
 
     ! --------------------------------------------------------------------------------------------
 
     ! Execution zone
-    n = 3
-    L = 1
+    n = 20
+    L = 15
     call initial_geom(n,L,coord)
 
-    call energy(n,coord,r,dist)
-
+    call energy(n,coord,dist,V)
 end program main
