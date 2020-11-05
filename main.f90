@@ -10,9 +10,9 @@ program main
     ! Declaration statements
 
     implicit none
-    integer :: n, L
+    integer :: n, L, maxcycle
     real(kind=8), allocatable :: coord(:,:)
-    real(kind=8) :: V
+    real(kind=8) :: threshold
 
     ! --------------------------------------------------------------------------------------------
 
@@ -21,5 +21,7 @@ program main
     L = 5
     call initial_geom(n,L,coord)
 
-    call energy(n,coord,V)
+    maxcycle = 3
+    threshold = 10.d0**(-6)
+    call energy(n,coord,maxcycle,threshold)
 end program main
