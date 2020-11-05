@@ -27,6 +27,13 @@ r12 r13 r14 r15 ... r1n
 0   0    0   0  ... rnn
 
 05/11/2020
-In the same subroutine (energy) we have computed the value od r**12 and r**6 which will be
-used to obtain the potential energy, in the same loop as r**2. After calculate r**2 we calculate
-(r**2)**6 = r**12 and (r**2)**3 = r**6
+In the same subroutine (energy) we have computed the value of r**12 and r**6 which will be
+used to obtain the potential energy. We computed the intial values of these powers of the 
+distance and the initial potential energy. Then, the Monte Carlo algorithm (a initial version of
+it) starts. We have defined a maximun number of cycles (chosen by the user) and a threshold in
+the energy change (also chosen by the user). Inside the do while loop of the MC, we chose
+a random atom and displaced it, we compute the energy and the energy diference between it
+and the previous geometry and, if delta_V is less than 0 the displacement is accepted. When 
+delta_V is positive, we evaluate the boltzmann factor and compare it to a random number between
+0 and 1. If random is less than exp(-delta_V) the displacement is accepted and a new cycle
+with the new geometry starts, if not, a new cycle with the previous geometry starts. 

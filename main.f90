@@ -21,7 +21,7 @@ program main
     L = 5
     call initial_geom(n,L,coord)
 
-    maxcycle = 3
+    maxcycle = 1
     threshold = 10.d0**(-6)
     call energy(n,coord,maxcycle,threshold)
 end program main

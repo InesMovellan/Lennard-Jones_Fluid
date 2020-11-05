@@ -74,7 +74,7 @@ module LJfluid
         real(kind=8), allocatable :: r12(:,:), r6(:,:)
         real(kind=8), dimension(3) :: delta_r
         real(kind=8), intent(in) :: threshold
-        real(kind=8) :: aux, V, V_new, delta_V
+        real(kind=8) :: aux, V, V_new, delta_V, a
         character(20) :: r_format
 
         ! Execution zone
@@ -116,7 +116,11 @@ module LJfluid
             atom = int(1+aux*n)
             delta_r = geom0(:,atom)/100.d0
             geomi = geom0
+            write(*,*) "Initial geometry"
+            write(*,'(3f10.5)') geom0
             geomi(:,atom) = geomi(:,atom)+delta_r
+            write(*,*) "Random displacement"
+            write(*,'(3f10.5)') geomi
             
             ! Initialization of potential energy and powers of the distance. Initial values are
             ! zero
@@ -134,10 +138,26 @@ module LJfluid
             enddo
             V_new = 4.d0*V_new
             delta_V = V_new - V
+            write(*,*) "Delta V"
+            write(*,*) delta_V
 
             if (delta_V < 0) then
                 geom0 = geomi
-            else
+                write(*,*) "Accepted geometry"
+                write(*,'(3f10.5)') geom0
+            else 
+                call random_number(a)                
+                write(*,*) "Random number and kB"
+                write(*,*) a
+                write(*,*) exp(-delta_V)
+                if (a < exp(-delta_V)) then
+                    geom0 = geomi
+                    write(*,*) "Accepted geometry"
+                    write(*,'(3f10.5)') geom0
+                else
+                    write(*,*) "Rejected geometry"
+                    write(*,'(3f10.5)') geom0
+                endif
             endif
 
             counter = counter + 1
