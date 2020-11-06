@@ -21,7 +21,8 @@ module LJfluid
     
         ! Declaration statements
         integer :: i, j
-        integer, intent(in) :: n, L  ! Number of particles (n) and lenght of the cubic box (L)
+        integer, intent(in) :: n  ! Number of particles 
+        real(kind=8), intent(in) :: L  ! Lenght of the cubic box
         real(kind=8), allocatable, intent(inout) :: geom0(:,:)
         real(kind=8), allocatable :: xyz(:)
 
@@ -64,7 +65,7 @@ module LJfluid
     ! *********************************************************************************************
     !                 SUBROUTINE 2: Calculate the potential energy
     
-    subroutine energy(n,geom0,maxcycle,threshold)
+    subroutine energy(n,geom0,L,maxcycle,threshold)
 
         ! Declaration statements
         integer :: i,j, counter, atom
@@ -73,7 +74,7 @@ module LJfluid
         real(kind=8), dimension(3,n) :: geomi
         real(kind=8), allocatable :: r12(:,:), r6(:,:)
         real(kind=8), dimension(3) :: delta_r
-        real(kind=8), intent(in) :: threshold
+        real(kind=8), intent(in) :: threshold, L
         real(kind=8) :: aux, V, V_new, delta_V, a
         character(20) :: r_format
 
@@ -100,6 +101,7 @@ module LJfluid
         ! Initial energy of the system
         V = 4.d0*V
 
+        open(24, file="out", action="write")
         ! Initialization of the counter of the MC cycles
         counter = 1
         ! The following do while loop is the MC algorithim. A initial random atom is chosen and
@@ -114,13 +116,35 @@ module LJfluid
             ! Choose a random atom and displace it. The new geometry is stored in geomi matrix
             call random_number(aux)
             atom = int(1+aux*n)
-            delta_r = geom0(:,atom)/100.d0
+            !delta_r = geom0(:,atom)/100.d0
+            call random_number(delta_r)
+            delta_r = delta_r-0.5
             geomi = geom0
-            write(*,*) "Initial geometry"
-            write(*,'(3f10.5)') geom0
+            write(24,*) "Initial geometry"
+            write(24,'(3f10.5)') geom0
+            write(24,*) "Random atom"
+            write(24,*) atom
+            write(24,*) "delta_r"
+            write(24,'(3f10.5)') delta_r
             geomi(:,atom) = geomi(:,atom)+delta_r
-            write(*,*) "Random displacement"
-            write(*,'(3f10.5)') geomi
+            ! We apply here conditions of restricted coordinates to a simulation box
+            if (geomi(1,atom) < 0.d0) then
+                geomi(1,atom) = geomi(1,atom) + L
+            elseif (geomi(1,atom) >= L) then
+                geomi(1,atom) = geomi(1,atom) - L
+            endif
+            if (geomi(2,atom) < 0.d0) then
+                geomi(2,atom) = geomi(2,atom) + L
+            elseif (geomi(2,atom) >= L) then
+                geomi(2,atom) = geomi(2,atom) - L
+            endif
+            if (geomi(3,atom) < 0.d0) then
+                geomi(3,atom) = geomi(3,atom) + L
+            elseif (geomi(3,atom) >= L) then
+                geomi(3,atom) = geomi(3,atom) - L
+            endif
+            write(24,*) "Random displacement"
+            write(24,'(3f10.5)') geomi
             
             ! Initialization of potential energy and powers of the distance. Initial values are
             ! zero
@@ -138,28 +162,28 @@ module LJfluid
             enddo
             V_new = 4.d0*V_new
             delta_V = V_new - V
-            write(*,*) "Delta V"
-            write(*,*) delta_V
+            write(24,*) "Delta V"
+            write(24,*) delta_V
 
             if (delta_V < 0) then
                 geom0 = geomi
-                write(*,*) "Accepted geometry"
-                write(*,'(3f10.5)') geom0
+                write(24,*) "Accepted geometry"
+                write(24,'(3f10.5)') geom0
             else 
                 call random_number(a)                
-                write(*,*) "Random number and kB"
-                write(*,*) a
-                write(*,*) exp(-delta_V)
+                write(24,*) "Random number and kB"
+                write(24,*) a
+                write(24,*) exp(-delta_V)
                 if (a < exp(-delta_V)) then
                     geom0 = geomi
-                    write(*,*) "Accepted geometry"
-                    write(*,'(3f10.5)') geom0
+                    write(24,*) "Accepted geometry"
+                    write(24,'(3f10.5)') geom0
                 else
-                    write(*,*) "Rejected geometry"
-                    write(*,'(3f10.5)') geom0
+                    write(24,*) "Rejected geometry"
+                    write(24,'(3f10.5)') geom0
                 endif
             endif
-
+            write(24,*) " "
             counter = counter + 1
         enddo
 
