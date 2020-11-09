@@ -84,7 +84,10 @@ module LJfluid
             do j = 1, i-1
                 r2(i-1,j) = (geom(1,i)-geom(1,j))**2+(geom(2,i)-geom(2,j))**2 &
                 +(geom(3,i)-geom(3,j))**2
-                V = V + (1.d0/r2(i-1,j)**6-1.d0/r2(i-1,j)**3)
+                ! Cutoff
+                if (r2(i-1,j)<rc**2) then
+                    V = V + (1.d0/r2(i-1,j)**6-1.d0/r2(i-1,j)**3) - V_rc
+                endif
             enddo
         enddo
         V = 4.d0*V
@@ -94,6 +97,7 @@ module LJfluid
     end subroutine energy
 
     ! *********************************************************************************************
+
     ! *********************************************************************************************
     !                 SUBROUTINE 3: Simulation of the LJ fluid with MC tecniques
     
