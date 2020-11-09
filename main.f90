@@ -17,14 +17,15 @@ program main
     ! --------------------------------------------------------------------------------------------
 
     ! Execution zone
-    n = 3
+    n = 5
     L = 6.d0
     call initial_geom(n,L,coord)
 
     rc = 3.d0
-    call energy(n,coord,L,rc, V, V_rc)
+    !call energy(n,coord,L,rc,V,V_rc)
 
-    maxcycle = 1
+    maxcycle = 10000
     threshold = 10.d0**(-6)
+    call montecarlo(n,coord,L,rc,V,V_rc, maxcycle)
     
 end program main
