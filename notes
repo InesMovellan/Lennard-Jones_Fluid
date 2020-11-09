@@ -38,4 +38,8 @@ delta_V is positive, we evaluate the boltzmann factor and compare it to a random
 0 and 1. If random is less than exp(-delta_V) the displacement is accepted and a new cycle
 with the new geometry starts, if not, a new cycle with the previous geometry starts. 
 
-06/11/2020
+09/11/2020
+Organization of the code: three subroutines in the module: one to set the initial geom, another
+which allows to compute the energy for a geometry of the particles (this subroutine will compute
+the energy with PBC) and the last one performs the montecarlo, it calls the subroutine energy
+on each montecarlo cycle.
