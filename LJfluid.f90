@@ -35,17 +35,17 @@ module LJfluid
         !     :
         ! xn  yn  zn
         allocate(geom0(3,n))
-        !call random_number(geom0)
-        !geom0 = L*geom0
-        geom0(1,1) = 4.567657
-        geom0(2,1) = 3.299239
-        geom0(3,1) = 1.499908
-        geom0(1,2) = 2.784433
-        geom0(2,2) = 4.387369
-        geom0(3,2) = 2.163670
-        geom0(1,3) = 1.344036
-        geom0(2,3) = 3.873313
-        geom0(3,3) = 2.126799
+        call random_number(geom0)
+        geom0 = L*geom0
+        !geom0(1,1) = 4.567657
+        !geom0(2,1) = 3.299239
+        !geom0(3,1) = 1.499908
+        !geom0(1,2) = 2.784433
+        !geom0(2,2) = 4.387369
+        !geom0(3,2) = 2.163670
+        !geom0(1,3) = 1.344036
+        !geom0(2,3) = 3.873313
+        !geom0(3,3) = 2.126799
         ! The initial geometry is written in a .xyz file, which can be read with 3D visualization
         ! programs (vesta, vmd, avogadro). In order to do that we use a auxiliar vector xyz
         open(23, file="initial_geom.xyz", action="write")
@@ -82,14 +82,66 @@ module LJfluid
         allocate(r2(n-1,n-1))
         do i = 2, n
             do j = 1, i-1
-                r2(i-1,j) = (geom(1,i)-geom(1,j))**2+(geom(2,i)-geom(2,j))**2 &
-                +(geom(3,i)-geom(3,j))**2
+                write(*,*) j, i
+                if (geom(1,i)-geom(1,j).le.L/2.d0 .and. geom(2,i)-geom(2,j).le.L/2.d0 .and. &
+                geom(3,i)-geom(3,j).le.L/2.d0) then
+                    write(*,*) "Todos dentro"
+                    r2(i-1,j) = (geom(1,i)-geom(1,j))**2+(geom(2,i)-geom(2,j))**2 &
+                    +(geom(3,i)-geom(3,j))**2
+                endif
+                if (geom(1,i)-geom(1,j).le.L/2.d0 .and. geom(2,i)-geom(2,j).le.L/2.d0 .and. &
+                geom(3,i)-geom(3,j).gt.L/2.d0) then
+                    write(*,*) "Z fuera"
+                    r2(i-1,j) = (geom(1,i)-geom(1,j))**2+(geom(2,i)-geom(2,j))**2 &
+                    +(geom(3,i)-geom(3,j)-L)**2
+                endif
+                if (geom(1,i)-geom(1,j).le.L/2.d0 .and. geom(2,i)-geom(2,j).gt.L/2.d0 .and. &
+                geom(3,i)-geom(3,j).le.L/2.d0) then
+                    write(*,*) "Y fuera"
+                    r2(i-1,j) = (geom(1,i)-geom(1,j))**2+(geom(2,i)-geom(2,j)-L)**2 &
+                    +(geom(3,i)-geom(3,j))**2
+                endif
+                if (geom(1,i)-geom(1,j).gt.L/2.d0 .and. geom(2,i)-geom(2,j).le.L/2.d0 .and. &
+                geom(3,i)-geom(3,j).le.L/2.d0) then
+                    write(*,*) "X fuera"
+                    r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2+(geom(2,i)-geom(2,j))**2 &
+                    +(geom(3,i)-geom(3,j))**2
+                endif
+                if (geom(1,i)-geom(1,j).le.L/2.d0 .and. geom(2,i)-geom(2,j).gt.L/2.d0 .and. &
+                geom(3,i)-geom(3,j).gt.L/2.d0) then
+                    write(*,*) "Y+Z fuera"
+                    r2(i-1,j) = (geom(1,i)-geom(1,j))**2+(geom(2,i)-geom(2,j)-L)**2 &
+                    +(geom(3,i)-geom(3,j)-L)**2
+                endif
+                if (geom(1,i)-geom(1,j).gt.L/2.d0 .and. geom(2,i)-geom(2,j).le.L/2.d0 .and. &
+                geom(3,i)-geom(3,j).gt.L/2.d0) then
+                    write(*,*) "X+Z fuera"
+                    r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2+(geom(2,i)-geom(2,j))**2 &
+                    +(geom(3,i)-geom(3,j)-L)**2
+                endif
+                if (geom(1,i)-geom(1,j).gt.L/2.d0 .and. geom(2,i)-geom(2,j).gt.L/2.d0 .and. &
+                geom(3,i)-geom(3,j).le.L/2.d0) then
+                    write(*,*) "X+Y fuera"
+                    r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2+(geom(2,i)-geom(2,j)-L)**2 &
+                    +(geom(3,i)-geom(3,j))**2
+                endif
+                if (geom(1,i)-geom(1,j).gt.L/2.d0 .and. geom(2,i)-geom(2,j).gt.L/2.d0 .and. &
+                geom(3,i)-geom(3,j).gt.L/2.d0) then
+                    write(*,*) "Todos fuera"
+                    r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2+(geom(2,i)-geom(2,j)-L)**2 &
+                    +(geom(3,i)-geom(3,j)-L)**2
+                endif
+
+
                 ! Cutoff
                 if (r2(i-1,j)<rc**2) then
                     V = V + (1.d0/r2(i-1,j)**6-1.d0/r2(i-1,j)**3) - V_rc
                 endif
             enddo
         enddo
+        write(*,'(2f13.4)') r2
+        write(*,*) V
+        write(*,*) " "
         V = 4.d0*V
 
         return

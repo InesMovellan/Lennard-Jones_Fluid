@@ -21,10 +21,10 @@ program main
     L = 6.d0
     call initial_geom(n,L,coord)
 
-    maxcycle = 100
-    threshold = 10.d0**(-6)
     rc = 3.d0
-    call montecarlo(n,coord,L,rc,maxcycle,threshold)
-    
     call energy(n,coord,L,rc, V, V_rc)
+
+    maxcycle = 1
+    threshold = 10.d0**(-6)
+    
 end program main
