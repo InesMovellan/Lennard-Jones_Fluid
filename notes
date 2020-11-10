@@ -43,3 +43,9 @@ Organization of the code: three subroutines in the module: one to set the initia
 which allows to compute the energy for a geometry of the particles (this subroutine will compute
 the energy with PBC) and the last one performs the montecarlo, it calls the subroutine energy
 on each montecarlo cycle.
+
+10/11/2020
+Monte Carlo subroutine is complete, the temperature is included in reduce units 300K = 1.268 RU. 
+Everything seems to work well when the values are T = 1.268 and N = 200. We have to compute
+the autocorrelation function g(r), but the potential energy converges to the same energy, with
+some oscillations, for different initial geometries. 

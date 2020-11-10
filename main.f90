@@ -12,20 +12,19 @@ program main
     implicit none
     integer :: n, maxcycle
     real(kind=8), allocatable :: coord(:,:)
-    real(kind=8) :: threshold, L, rc, V, V_rc
+    real(kind=8) :: threshold, L, rc, V, V_rc, T
 
     ! --------------------------------------------------------------------------------------------
 
     ! Execution zone
-    n = 5
+    n = 100
     L = 6.d0
-    call initial_geom(n,L,coord)
+    call initial_geom(n, L, coord)
 
     rc = 3.d0
-    !call energy(n,coord,L,rc,V,V_rc)
-
-    maxcycle = 10000
+    T = 1.268
+    maxcycle = 30000
     threshold = 10.d0**(-6)
-    call montecarlo(n,coord,L,rc,V,V_rc, maxcycle)
+    call montecarlo(n, coord, L, rc, V, V_rc, T, maxcycle)
     
 end program main

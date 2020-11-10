@@ -151,39 +151,34 @@ module LJfluid
     ! *********************************************************************************************
     !                 SUBROUTINE 3: Simulation of the LJ fluid with MC tecniques
     
-    subroutine montecarlo(n, geom0, L, rc, V, V_rc, maxcycle)
+    subroutine montecarlo(n, geom0, L, rc, V, V_rc, temp, maxcycle)
 
         ! Declaration statements
         integer :: i,j, counter, atom
         integer, intent(in) :: n, maxcycle
         real(kind=8), dimension(3,n) :: geom0, geomi
-        real(kind=8) :: L, rc, V, V_rc, V_new, aux, delta_r, delta_V, a
+        real(kind=8), dimension(3) :: xyz
+        real(kind=8) :: L, rc, V, V_rc, V_new, aux, delta_r, delta_V, a, temp
 
         ! Execution zone
         ! The potential energy for the initial geometry is calculated
         call energy(n, geom0, L, rc, V, V_rc)
-        open(24, file="out", action="write")
         open(25, file="v_out", action="write")
 
         ! Initialization of the counter of MC cycles
         counter = 0
         do while (counter .lt. maxcycle) 
             counter = counter + 1
-            write(24,'( "CYCLE", I5)') counter
-            write(24,'( "Potential V", f10.6)') V 
             write(25,*) counter, V 
             ! A random atom is chosen and displaced a random quantity between -0.5 and 0.5 units
             call random_number(aux)
             atom = int(1+aux*n)
             call random_number(delta_r)
-            delta_r = delta_r-0.5
+            delta_r = (delta_r-0.5)*(L/3.d0)
             ! The geometry in cycle i is geomi, i.e., the initial geometry with the random 
             ! displacement of atom i
             geomi = geom0
             geomi(:,atom) = geomi(:,atom)+delta_r
-            write(24,'(3f10.5)') geom0
-            write(24,*) " "
-            write(24,'(3f10.5)') geomi
             ! Condition of restricted coordinates to a simulation box
             do i = 1, 3
                 if (geomi(i,atom) .lt. 0.d0) then
@@ -193,32 +188,30 @@ module LJfluid
                 endif
             enddo
             call energy(n, geomi, L, rc, V_new, V_rc) 
-            write(24,'( "Potential V_new", f10.6)') V_new
             delta_V = V_new - V
-            write(24,'( "Delta V", f10.6)') delta_V
             if (delta_V .lt. 0.d0) then
-                write(24,*) "Accepted geometry"
                 geom0 = geomi
                 V = V_new
             else 
                 call random_number(a)
-                write(24, '( "Random a", f15.9 )') a
-                write(24, '( "Boltzmann factor", f15.9 )') exp(-delta_V)
-                if (a .lt. exp(-delta_V)) then
+                if (a .lt. exp(-delta_V)/temp) then
                     geom0 = geomi
                     V = V_new
-                    write(24,*) "Accepted geometry"
                 else
-                    write(24,*) "Rejected geometry"
                 endif
             endif
-            write(24,*) " "
+        enddo
+        open(26, file="final_geom.xyz", action="write")
+        write(26,'(I4)') n
+        write(26,*) " "
+        do i = 1, n
+            xyz = geom0(:,i)
+            write(26,'( "H", f10.6, f10.6, f10.6)' ) xyz(1), xyz(2), xyz(3)
         enddo
         return
 
     end subroutine montecarlo
 
     ! *********************************************************************************************
-
 
 end module LJfluid
