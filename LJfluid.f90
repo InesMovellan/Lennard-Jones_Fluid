@@ -68,7 +68,7 @@ module LJfluid
     ! *********************************************************************************************
     !                 SUBROUTINE 2: Calculate the potential energy with PBC
 
-    subroutine energy(n, geom, L, rc, V, V_rc)
+    subroutine energy(n, geom, L, r2, rc, V, V_rc)
         
         ! Declaration statements
         integer :: i, j
@@ -76,13 +76,12 @@ module LJfluid
         real(kind=8), intent(in) :: L, rc
         real(kind=8), dimension(3,n), intent(in) :: geom
         real(kind=8), intent(out) :: V, V_rc
-        real(kind=8), allocatable :: r2(:,:)
+        real(kind=8), dimension(n-1,n-1), intent(out) :: r2
 
         ! Execution zone
         V = 0.d0
         V_rc = 4*(1.d0/rc**12-1.d0/rc**6)
 
-        allocate(r2(n-1,n-1))
         do i = 2, n
             do j = 1, i-1
                 if (geom(1,i)-geom(1,j).le.L/2.d0 .and. geom(2,i)-geom(2,j).le.L/2.d0 .and. &
@@ -154,16 +153,31 @@ module LJfluid
     subroutine montecarlo(n, geom0, L, rc, V, V_rc, temp, maxcycle)
 
         ! Declaration statements
-        integer :: i,j, counter, atom
+        integer :: i,j,k, counter, atom, max_hist
         integer, intent(in) :: n, maxcycle
         real(kind=8), dimension(3,n) :: geom0, geomi
+        real(kind=8), dimension(n-1,n-1) :: r2
         real(kind=8), dimension(3) :: xyz
-        real(kind=8) :: L, rc, V, V_rc, V_new, aux, delta_r, delta_V, a, temp
+        real(kind=8), allocatable :: hist(:,:)
+        real(kind=8) :: L, rc, V, V_rc, V_new, aux, delta_r, delta_V, a, temp, increment, rho, pi
 
         ! Execution zone
         ! The potential energy for the initial geometry is calculated
-        call energy(n, geom0, L, rc, V, V_rc)
+        call energy(n, geom0, L, r2, rc, V, V_rc)
+        ! The mean density is computed
+        rho = n/(L**3)
+        ! Calculate pi
+        pi = 4*atan(1.0)
+        write(*,*) pi
+
         open(25, file="v_out", action="write")
+        open(27, file="histogram", action="write")
+
+        increment = 0.05
+        max_hist = int(L/(2*increment))+1
+        ! hist is the matrix which stored the values of delta_r, 2*delta_r... in its first 
+        ! column and the times in which each interval is present over the n different structures
+        allocate(hist(5,max_hist))
 
         ! Initialization of the counter of MC cycles
         counter = 0
@@ -187,7 +201,32 @@ module LJfluid
                     geomi(i,atom) = geomi(i,atom) - L
                 endif
             enddo
-            call energy(n, geomi, L, rc, V_new, V_rc) 
+
+            call energy(n, geomi, L, r2, rc, V_new, V_rc) 
+            
+            ! Calculation of the number of structures present on each delta_r interval
+            if (mod(counter,5) .eq. 0) then
+                do k = 1, max_hist
+                    do i = 2, n
+                        do j = 1, i-1
+                            if (sqrt(r2(i-1,j)) .gt. (k-1)*increment .and. sqrt(r2(i-1,j)) .lt.&
+                            k*increment) then
+                                ! Compute delta_r, 2*delta_r...
+                                hist(1,k) = k*increment
+                                ! Compute the number of structures on each interval
+                                hist(2,k) = hist(2,k) + 1
+                                ! Compute the volume of spherical shell
+                                hist(3,k) = 4*pi*r2(i-1,j)*increment
+                            endif
+                        enddo
+                    enddo
+                    ! Compute the density at r
+                    hist(4,k) = hist(2,k)/hist(3,k)
+                    ! Compute g(r)
+                    hist(5,k) = hist(4,k)/rho
+                enddo
+            endif
+
             delta_V = V_new - V
             if (delta_V .lt. 0.d0) then
                 geom0 = geomi
@@ -201,6 +240,9 @@ module LJfluid
                 endif
             endif
         enddo
+        write(27, '(5f15.3)') hist
+
+        ! Final geometry configuration is written on final_geom.xyz file
         open(26, file="final_geom.xyz", action="write")
         write(26,'(I4)') n
         write(26,*) " "
@@ -208,6 +250,8 @@ module LJfluid
             xyz = geom0(:,i)
             write(26,'( "H", f10.6, f10.6, f10.6)' ) xyz(1), xyz(2), xyz(3)
         enddo
+
+
         return
 
     end subroutine montecarlo
