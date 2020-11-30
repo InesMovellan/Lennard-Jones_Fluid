@@ -5,7 +5,7 @@
 !               by the user in main.f90
 ! SUBROUTINE 2: Computes the potential energy of a determinated geometry configuration with
 !               periodic boundary conditions in the three directions
-! SUBROUTINE 3: 
+! SUBROUTINE 3: Monte Carlo subroutine and calculation of pair correlation function
 
 ! To use this module main.f90 is needed, also contained in this directory
 
@@ -14,7 +14,7 @@
 module LJfluid
 
     implicit none
-    public :: initial_geom, energy, montecarlo
+    public :: initial_geom, initial_energy, energy, montecarlo
     contains
 
     ! *********************************************************************************************
@@ -68,7 +68,7 @@ module LJfluid
     ! *********************************************************************************************
     !                 SUBROUTINE 2: Calculate the potential energy with PBC
 
-    subroutine energy(n, geom, L, r2, rc, V, V_rc)
+    subroutine initial_energy(n, geom, L, r2, rc, V, V_rc)
         
         ! Declaration statements
         integer :: i, j
@@ -143,7 +143,33 @@ module LJfluid
 
         return
 
+    end subroutine initial_energy
+
+    ! *********************************************************************************************
+
+
+    ! *********************************************************************************************
+    !                 SUBROUTINE 3: Simulation of the LJ fluid with MC tecniques
+
+    subroutine energy(n, geom, L, r2, V, V_rc, atom)
+        ! Declaration statements
+        integer :: i, j
+        integer, intent(in) :: n, atom
+        real(kind=8), intent(in) :: L
+        real(kind=8), dimension(3,n), intent(in) :: geom
+        real(kind=8), intent(out) :: V, V_rc
+        real(kind=8), dimension(n-1,n-1), intent(out) :: r2
+
+        ! Execution zone
+        do j = 1, atom-1
+            r2(i-1,j) = (geom(1,atom)-geom(1,j))**2+(geom(2,atom)-geom(2,j))**2 &
+            +(geom(3,atom)-geom(3,j))**2
+        enddo
+        return
     end subroutine energy
+
+    ! *********************************************************************************************
+
 
     ! *********************************************************************************************
 
@@ -163,12 +189,11 @@ module LJfluid
 
         ! Execution zone
         ! The potential energy for the initial geometry is calculated
-        call energy(n, geom0, L, r2, rc, V, V_rc)
+        call initial_energy(n, geom0, L, r2, rc, V, V_rc)
         ! The mean density is computed
         rho = n/(L**3)
         ! Calculate pi
         pi = 4*atan(1.0)
-        write(*,*) pi
 
         open(25, file="v_out", action="write")
         open(27, file="histogram", action="write")
@@ -202,10 +227,10 @@ module LJfluid
                 endif
             enddo
 
-            call energy(n, geomi, L, r2, rc, V_new, V_rc) 
+            call initial_energy(n, geomi, L, r2, rc, V_new, V_rc) 
             
             ! Calculation of the number of structures present on each delta_r interval
-            if (mod(counter,5) .eq. 0) then
+            if (mod(counter,100) .eq. 0) then
                 do k = 1, max_hist
                     do i = 2, n
                         do j = 1, i-1
@@ -214,7 +239,7 @@ module LJfluid
                                 ! Compute delta_r, 2*delta_r...
                                 hist(1,k) = k*increment
                                 ! Compute the number of structures on each interval
-                                hist(2,k) = hist(2,k) + 1
+                                hist(2,k) = (hist(2,k) + 1)
                                 ! Compute the volume of spherical shell
                                 hist(3,k) = 4*pi*r2(i-1,j)*increment
                             endif
@@ -223,7 +248,7 @@ module LJfluid
                     ! Compute the density at r
                     hist(4,k) = hist(2,k)/hist(3,k)
                     ! Compute g(r)
-                    hist(5,k) = hist(4,k)/rho
+                    hist(5,k) = hist(4,k)/(rho*counter)
                 enddo
             endif
 

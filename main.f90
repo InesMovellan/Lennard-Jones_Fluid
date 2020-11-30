@@ -23,7 +23,7 @@ program main
 
     rc = 3.d0
     T = 1.268
-    maxcycle = 50000
+    maxcycle = 200000
     threshold = 10.d0**(-6)
     call montecarlo(n, coord, L, rc, V, V_rc, T, maxcycle)
     

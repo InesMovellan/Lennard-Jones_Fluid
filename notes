@@ -49,3 +49,8 @@ Monte Carlo subroutine is complete, the temperature is included in reduce units 
 Everything seems to work well when the values are T = 1.268 and N = 200. We have to compute
 the autocorrelation function g(r), but the potential energy converges to the same energy, with
 some oscillations, for different initial geometries. 
+
+26/11/2020
+We have implemented in MC subroutine an algorithm to calculate the pair correlation function,
+which have some wrong constants but the shape is similar to the expected one, it is not 
+soft and I have to solve it. 
