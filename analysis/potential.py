@@ -15,7 +15,7 @@ pot = []
 f = open('v_out','r')
 for i in range(0,5000):
     line = f.readline()
-for i in range(0,195000):
+for i in range(0,95000):
     line = f.readline()
     l = line.split()
     cycle.append(float(l[0]))

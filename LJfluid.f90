@@ -26,7 +26,8 @@ module LJfluid
         integer :: i, j
         integer, intent(in) :: n  ! Number of particles 
         real(kind=8), intent(in) :: L  ! Lenght of the cubic box
-        real(kind=8), allocatable, intent(inout) :: geom0(:,:) real(kind=8), allocatable :: xyz(:)
+        real(kind=8), allocatable, intent(inout) :: geom0(:,:) 
+        real(kind=8), allocatable :: xyz(:)
 
         ! Execution zone
         ! The initial coordinates of the particles are stored in a matrix called pos0, which
@@ -86,21 +87,21 @@ module LJfluid
                 ! Periodic boundary conditions using the nearest image convention
 
                 ! Cartesian coordinate X
-                if (geom(1,i)-geom(1,j).gt.L/2.d0) then
+                if (abs(geom(1,i)-geom(1,j)).gt.L/2.d0) then
                     r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2
                 else
                     r2(i-1,j) = (geom(1,i)-geom(1,j))**2
                 endif
 
                 ! Cartesian coordinate Y
-                if (geom(2,i)-geom(2,j).gt.L/2.d0) then
+                if (abs(geom(2,i)-geom(2,j)).gt.L/2.d0) then
                     r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)-L)**2
                 else
                     r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j))**2
                 endif
 
                 ! Cartesian coordinate Z
-                if (geom(3,i)-geom(3,j).gt.L/2.d0) then
+                if (abs(geom(3,i)-geom(3,j)).gt.L/2.d0) then
                     r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)-L)**2
                 else
                     r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j))**2

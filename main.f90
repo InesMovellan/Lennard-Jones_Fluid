@@ -23,7 +23,7 @@ program main
 
     rc = 3.d0
     T = 1.268
-    maxcycle = 200000
+    maxcycle = 100000
     call montecarlo(n, coord, L, rc, V, V_rc, T, maxcycle)
     
 end program main
