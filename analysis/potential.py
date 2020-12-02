@@ -13,13 +13,25 @@ plt.rc('font', **font)
 cycle = []
 pot = []
 f = open('v_out','r')
-line = f.readline()
-while line:
+for i in range(0,5000):
+    line = f.readline()
+for i in range(0,195000):
+    line = f.readline()
     l = line.split()
     cycle.append(float(l[0]))
     pot.append(float(l[1]))
-    line = f.readline()
 f.close()
+
+#line = f.readline()
+#while line:
+#   l = line.split()
+#   cycle.append(float(l[0]))
+#   pot.append(float(l[1]))
+#   line = f.readline()
+#f.close()
+#for i in range(0,1000):
+#    cycle.pop(i)
+#    pot.pop(i)
 
 # Representation of the energy against the distortion coordinate
 fig = plt.figure()

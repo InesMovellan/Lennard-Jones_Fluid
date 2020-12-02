@@ -26,8 +26,7 @@ module LJfluid
         integer :: i, j
         integer, intent(in) :: n  ! Number of particles 
         real(kind=8), intent(in) :: L  ! Lenght of the cubic box
-        real(kind=8), allocatable, intent(inout) :: geom0(:,:)
-        real(kind=8), allocatable :: xyz(:)
+        real(kind=8), allocatable, intent(inout) :: geom0(:,:) real(kind=8), allocatable :: xyz(:)
 
         ! Execution zone
         ! The initial coordinates of the particles are stored in a matrix called pos0, which
@@ -73,10 +72,10 @@ module LJfluid
         ! Declaration statements
         integer :: i, j
         integer, intent(in) :: n
-        real(kind=8), intent(in) :: L, rc
         real(kind=8), dimension(3,n), intent(in) :: geom
-        real(kind=8), intent(out) :: V, V_rc
+        real(kind=8), intent(in) :: L, rc
         real(kind=8), dimension(n-1,n-1), intent(out) :: r2
+        real(kind=8), intent(out) :: V, V_rc
 
         ! Execution zone
         V = 0.d0
@@ -84,61 +83,36 @@ module LJfluid
 
         do i = 2, n
             do j = 1, i-1
-                if (geom(1,i)-geom(1,j).le.L/2.d0 .and. geom(2,i)-geom(2,j).le.L/2.d0 .and. &
-                geom(3,i)-geom(3,j).le.L/2.d0) then
-                    !write(*,*) "Todos dentro"
-                    r2(i-1,j) = (geom(1,i)-geom(1,j))**2+(geom(2,i)-geom(2,j))**2 &
-                    +(geom(3,i)-geom(3,j))**2
-                endif
-                if (geom(1,i)-geom(1,j).le.L/2.d0 .and. geom(2,i)-geom(2,j).le.L/2.d0 .and. &
-                geom(3,i)-geom(3,j).gt.L/2.d0) then
-                    !write(*,*) "Z fuera"
-                    r2(i-1,j) = (geom(1,i)-geom(1,j))**2+(geom(2,i)-geom(2,j))**2 &
-                    +(geom(3,i)-geom(3,j)-L)**2
-                endif
-                if (geom(1,i)-geom(1,j).le.L/2.d0 .and. geom(2,i)-geom(2,j).gt.L/2.d0 .and. &
-                geom(3,i)-geom(3,j).le.L/2.d0) then
-                    !write(*,*) "Y fuera"
-                    r2(i-1,j) = (geom(1,i)-geom(1,j))**2+(geom(2,i)-geom(2,j)-L)**2 &
-                    +(geom(3,i)-geom(3,j))**2
-                endif
-                if (geom(1,i)-geom(1,j).gt.L/2.d0 .and. geom(2,i)-geom(2,j).le.L/2.d0 .and. &
-                geom(3,i)-geom(3,j).le.L/2.d0) then
-                    !write(*,*) "X fuera"
-                    r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2+(geom(2,i)-geom(2,j))**2 &
-                    +(geom(3,i)-geom(3,j))**2
-                endif
-                if (geom(1,i)-geom(1,j).le.L/2.d0 .and. geom(2,i)-geom(2,j).gt.L/2.d0 .and. &
-                geom(3,i)-geom(3,j).gt.L/2.d0) then
-                    !write(*,*) "Y+Z fuera"
-                    r2(i-1,j) = (geom(1,i)-geom(1,j))**2+(geom(2,i)-geom(2,j)-L)**2 &
-                    +(geom(3,i)-geom(3,j)-L)**2
-                endif
-                if (geom(1,i)-geom(1,j).gt.L/2.d0 .and. geom(2,i)-geom(2,j).le.L/2.d0 .and. &
-                geom(3,i)-geom(3,j).gt.L/2.d0) then
-                    !write(*,*) "X+Z fuera"
-                    r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2+(geom(2,i)-geom(2,j))**2 &
-                    +(geom(3,i)-geom(3,j)-L)**2
-                endif
-                if (geom(1,i)-geom(1,j).gt.L/2.d0 .and. geom(2,i)-geom(2,j).gt.L/2.d0 .and. &
-                geom(3,i)-geom(3,j).le.L/2.d0) then
-                    !write(*,*) "X+Y fuera"
-                    r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2+(geom(2,i)-geom(2,j)-L)**2 &
-                    +(geom(3,i)-geom(3,j))**2
-                endif
-                if (geom(1,i)-geom(1,j).gt.L/2.d0 .and. geom(2,i)-geom(2,j).gt.L/2.d0 .and. &
-                geom(3,i)-geom(3,j).gt.L/2.d0) then
-                    !write(*,*) "Todos fuera"
-                    r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2+(geom(2,i)-geom(2,j)-L)**2 &
-                    +(geom(3,i)-geom(3,j)-L)**2
+                ! Periodic boundary conditions using the nearest image convention
+
+                ! Cartesian coordinate X
+                if (geom(1,i)-geom(1,j).gt.L/2.d0) then
+                    r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2
+                else
+                    r2(i-1,j) = (geom(1,i)-geom(1,j))**2
                 endif
 
-                ! Cutoff
+                ! Cartesian coordinate Y
+                if (geom(2,i)-geom(2,j).gt.L/2.d0) then
+                    r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)-L)**2
+                else
+                    r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j))**2
+                endif
+
+                ! Cartesian coordinate Z
+                if (geom(3,i)-geom(3,j).gt.L/2.d0) then
+                    r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)-L)**2
+                else
+                    r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j))**2
+                endif
+
+                ! Calculation of the potential using the cutoff rc
                 if (r2(i-1,j)<rc**2) then
                     V = V + (1.d0/r2(i-1,j)**6-1.d0/r2(i-1,j)**3) - V_rc
                 endif
             enddo
         enddo
+
         V = 4.d0*V
 
         return
@@ -152,6 +126,7 @@ module LJfluid
     !                 SUBROUTINE 3: Simulation of the LJ fluid with MC tecniques
 
     subroutine energy(n, geom, L, r2, V, V_rc, atom)
+
         ! Declaration statements
         integer :: i, j
         integer, intent(in) :: n, atom
@@ -166,6 +141,7 @@ module LJfluid
             +(geom(3,atom)-geom(3,j))**2
         enddo
         return
+         
     end subroutine energy
 
     ! *********************************************************************************************
@@ -275,7 +251,6 @@ module LJfluid
             xyz = geom0(:,i)
             write(26,'( "H", f10.6, f10.6, f10.6)' ) xyz(1), xyz(2), xyz(3)
         enddo
-
 
         return
 

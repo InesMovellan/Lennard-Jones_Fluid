@@ -12,7 +12,7 @@ program main
     implicit none
     integer :: n, maxcycle
     real(kind=8), allocatable :: coord(:,:)
-    real(kind=8) :: threshold, L, rc, V, V_rc, T
+    real(kind=8) :: L, rc, V, V_rc, T
 
     ! --------------------------------------------------------------------------------------------
 
@@ -24,7 +24,6 @@ program main
     rc = 3.d0
     T = 1.268
     maxcycle = 200000
-    threshold = 10.d0**(-6)
     call montecarlo(n, coord, L, rc, V, V_rc, T, maxcycle)
     
 end program main

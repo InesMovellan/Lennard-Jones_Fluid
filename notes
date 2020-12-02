@@ -54,3 +54,18 @@ some oscillations, for different initial geometries.
 We have implemented in MC subroutine an algorithm to calculate the pair correlation function,
 which have some wrong constants but the shape is similar to the expected one, it is not 
 soft and I have to solve it. 
+
+01/11/2020, not uploaded yet
+I have implemented a new way to compute the deltaV, directly, instead of computing the whole r2  
+matrix and the overall V on each MonteCarlo. There is a discrepancy between both results and     
+it comes from the Vrc cause if I do not include this Vrc the problem vanishes. The discrepancy   
+appears again when I increase the number of monte carlo cycles but I think that it is            
+because I only take one deltaV of reference. I will contruct two LJfluid modules, one with the   
+overall V subroutine and one with deltaV subroutine and, for the same geometry I will check the  
+results.                                                                                         
+
+02/11/2020
+I rewrite the way to implement PBC with the nearest convention image. I have reduced the 
+number of if-else structures I use from 8 to 3. I just implemented it in initial_energy
+subroutine cause the delta_energy subroutine it is not working yet.
+
