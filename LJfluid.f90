@@ -28,8 +28,23 @@
 module LJfluid
 
     implicit none
-    public :: initial_geom, initial_V, delta_pot, montecarlo
+    public :: initial_geom, initial_V, delta_V, montecarlo
     contains
+    ! List of common variables. Variables which are particular of each subroutine are described
+    ! on the subroutine
+
+    ! integers i, j and k in subroutines are counters for the do loops
+    ! n = number of particles in the simulation box
+    ! V = potential energy of the system
+    ! rc = cutoff radius from which the interaction between two atoms is neglected
+    ! Vrc = potential energy of the system at r = rc
+    ! geom0 = 3 columns, n rows matrix which contains the initial set of (X, Y, Z) coordinates 
+    ! geomi = 3 columns, n rows matrix which store the cartesian coordinates (X, Y, Z) of each
+    ! particle in each row, it changes for each trial move.
+    ! r2 = triangular matrix which store the value of the square of the distance between each
+    ! pair of particles rij^2
+    ! atom = particle over which a trial move is performed on each Monte Carlo cycle
+    ! r2mod = 
 
 
     ! *********************************************************************************************
@@ -40,10 +55,6 @@ module LJfluid
     
         ! Declaration statements
         implicit none
-        ! integers i and j = counters for the do loops
-        ! n = number of particles in the simulation box
-        ! L = simulation box side length
-        ! geom0 = 3 columns n rows matrix which contains the initial set of (X, Y, Z) coordinates 
         integer :: i, j
         integer, intent(in) :: n  
         real(kind=8), intent(in) :: L  
@@ -85,56 +96,59 @@ module LJfluid
     !              SUBROUTINE 2: Calculate the initial potential energy with PBC
     ! *********************************************************************************************
 
-    subroutine initial_V(n, geom, L, r2, rc, V, V_rc)
+    subroutine initial_V(n, geom0, L, r2, rc, V, Vrc)
 
         ! Declaration statements
+        implicit none
         integer :: i, j
         integer, intent(in) :: n
-        real(kind=8), dimension(3,n), intent(in) :: geom
+        real(kind=8), dimension(3,n), intent(in) :: geom0
         real(kind=8), intent(in) :: L, rc
         real(kind=8), dimension(n-1,n-1), intent(out) :: r2
-        real(kind=8), intent(out) :: V, V_rc
+        real(kind=8), intent(out) :: V, Vrc
+
 
         ! Execution zone
+        ! Initially set V to 0
         V = 0.d0
-        V_rc = 4*(1.d0/rc**12-1.d0/rc**6)
+        ! Compute the value of V at rc
+        Vrc = 4*(1.d0/rc**12-1.d0/rc**6)
 
         do i = 2, n
             do j = 1, i-1
-                ! Periodic boundary conditions using the nearest image convention
+                ! Periodic boundary conditions using the nearest image convention in which
+                ! we compute the interaction between a pair of atom which interatomic distance
+                ! is less than L/2. !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! REVISAR ESTO
 
                 ! Cartesian coordinate X
-                if (abs(geom(1,i)-geom(1,j)).gt.L/2.d0) then
-                    r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2
+                if (abs(geom0(1,i)-geom0(1,j)).gt.L/2.d0) then
+                    r2(i-1,j) = (geom0(1,i)-geom0(1,j)-L)**2
                 else
-                    r2(i-1,j) = (geom(1,i)-geom(1,j))**2
+                    r2(i-1,j) = (geom0(1,i)-geom0(1,j))**2
                 endif
 
                 ! Cartesian coordinate Y
-                if (abs(geom(2,i)-geom(2,j)).gt.L/2.d0) then
-                    r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)-L)**2
+                if (abs(geom0(2,i)-geom0(2,j)).gt.L/2.d0) then
+                    r2(i-1,j) = r2(i-1,j) + (geom0(2,i)-geom0(2,j)-L)**2
                 else
-                    r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j))**2
+                    r2(i-1,j) = r2(i-1,j) + (geom0(2,i)-geom0(2,j))**2
                 endif
 
                 ! Cartesian coordinate Z
-                if (abs(geom(3,i)-geom(3,j)).gt.L/2.d0) then
-                    r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)-L)**2
+                if (abs(geom0(3,i)-geom0(3,j)).gt.L/2.d0) then
+                    r2(i-1,j) = r2(i-1,j) + (geom0(3,i)-geom0(3,j)-L)**2
                 else
-                    r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j))**2
+                    r2(i-1,j) = r2(i-1,j) + (geom0(3,i)-geom0(3,j))**2
                 endif
 
                 ! Calculation of the potential using the cutoff rc
-                !if (r2(i-1,j)<rc**2) then
-                    V = V + (1.d0/r2(i-1,j)**6-1.d0/r2(i-1,j)**3) !- V_rc
-                !endif
+                if (r2(i-1,j)<rc**2) then
+                    V = V + (1.d0/r2(i-1,j)**6-1.d0/r2(i-1,j)**3) - Vrc
+                endif
             enddo
         enddo
 
         V = 4.d0*V
-        !write(*,*) "Matrix r2 initial_V"
-        !write(*,'(3f15.10)') r2
-        !write(*,*) " "
 
         return
 
@@ -148,24 +162,22 @@ module LJfluid
     !                 SUBROUTINE 3: Simulation of the LJ fluid with MC tecniques
     ! *********************************************************************************************
 
-    subroutine delta_pot(n, geom, L, r2, rc, atom, modify_r2, deltaV)
+    subroutine delta_V(n, geomi, L, r2, rc, atom, r2mod, dV)
 
         ! Declaration statements
         integer :: i, j
         integer, intent(in) :: n, atom
         real(kind=8), intent(in) :: L, rc
-        real(kind=8), dimension(3,n), intent(in) :: geom
-        real(kind=8), intent(inout) :: deltaV
+        real(kind=8), dimension(3,n), intent(in) :: geomi
+        real(kind=8), intent(inout) :: dV
         real(kind=8), dimension(n-1,n-1), intent(out) :: r2
-        real(kind=8), dimension(n-1,n-1), intent(inout) :: modify_r2
+        real(kind=8), dimension(n-1), intent(inout) :: r2mod
 
         ! Execution zone
-        deltaV = 0.d0
-        modify_r2 = 0.d0
-        !write(*,'( "Muevo atom", 1I5)') atom
-        !write(*,*) " "
+        dV = 0.d0
+        r2mod = 0.d0
 
-        ! The evaluation of deltaV is computed using two do loops, one for the modified terms 
+        ! The evaluation of dV is computed using two do loops, one for the modified terms 
         ! r2(atom-1,i), i.e. r(atom-1,1), r(atom-1,2)... until i = atom-1, and the other for the
         ! terms r2(i, atom) for i > atom, i.e. r2(atom+1,atom), r2(atom+2,atom)... until i = n.
         ! This can be done also with a do loop from 1 to n and an if-else inside the loop but it 
@@ -175,50 +187,29 @@ module LJfluid
             ! modified coordinates
 
             ! Cartesian coordinate X
-            if (abs(geom(1,atom)-geom(1,i)).gt.L/2.d0) then
-                modify_r2(atom-1,i) = (geom(1,atom)-geom(1,i)-L)**2
+            if (abs(geomi(1,atom)-geomi(1,i)).gt.L/2.d0) then
+                r2mod(i) = (geomi(1,atom)-geomi(1,i)-L)**2
             else
-                modify_r2(atom-1,i) = (geom(1,atom)-geom(1,i))**2
+                r2mod(i) = (geomi(1,atom)-geomi(1,i))**2
             endif
 
             ! Cartesian coordinate Y
-            if (abs(geom(2,atom)-geom(2,i)).gt.L/2.d0) then
-                modify_r2(atom-1,i) = modify_r2(atom-1,i) + (geom(2,atom)-geom(2,i)-L)**2
+            if (abs(geomi(2,atom)-geomi(2,i)).gt.L/2.d0) then
+                r2mod(i) = r2mod(i) + (geomi(2,atom)-geomi(2,i)-L)**2
             else
-                modify_r2(atom-1,i) = modify_r2(atom-1,i) + (geom(2,atom)-geom(2,i))**2
+                r2mod(i) = r2mod(i) + (geomi(2,atom)-geomi(2,i))**2
             endif
 
             ! Cartesian coordinate Z
-            if (abs(geom(3,atom)-geom(3,i)).gt.L/2.d0) then
-                modify_r2(atom-1,i) = modify_r2(atom-1,i) + (geom(3,atom)-geom(3,i)-L)**2
+            if (abs(geomi(3,atom)-geomi(3,i)).gt.L/2.d0) then
+                r2mod(i) = r2mod(i) + (geomi(3,atom)-geomi(3,i)-L)**2
             else
-                modify_r2(atom-1,i) = modify_r2(atom-1,i) + (geom(3,atom)-geom(3,i))**2
+                r2mod(i) = r2mod(i) + (geomi(3,atom)-geomi(3,i))**2
             endif
 
-            !write(*,*) "Modify r2, corresponding r2"
-            !write(*,'(2f15.10)') modify_r2(atom-1,i), r2(atom-1,i)
-
-            !if (modify_r2(i) .le. rc**2 .and. r2(atom-1,i) .le. rc**2) then
-            !if (r2(atom-1,i) .le. rc**2) then
-                !write(*,*) "********************"
-                !write(*,*) "dentro cutoff"
-                !write(*,*) "modify_r2, old r2"
-                !write(*,'(2f10.4)') modify_r2(i), r2(atom-1,i)
-                !write(*,*) " "
-                !write(*,*) "DELTA V"
-                !write(*,*) deltaV
-            deltaV = deltaV + 1.d0/modify_r2(atom-1,i)**6 - 1.d0/modify_r2(atom-1,i)**3 &
+            ! The value of dV is computed for the implied distances
+            dV = dV + 1.d0/r2mod(i)**6 - 1.d0/r2mod(i)**3 &
             - 1.d0/r2(atom-1,i)**6 + 1.d0/r2(atom-1,i)**3
-                !write(*,*) "DELTA V"
-                !write(*,*) deltaV
-                !write(*,*) " "
-                !write(*,*) "deltaV"
-                !write(*,*) deltaV
-                !write(*,*) "********************"
-            !else
-                !write(*,*) "fuera cutoff"
-            !endif
-            !write(*,*) i, deltaV
         enddo
 
         do i = atom+1, n
@@ -226,47 +217,36 @@ module LJfluid
             ! modified coordinates
 
             ! Cartesian coordinate X
-            if (abs(geom(1,i)-geom(1,atom)).gt.L/2.d0) then
-               modify_r2(i-1,atom) = (geom(1,i)-geom(1,atom)-L)**2
+            if (abs(geomi(1,i)-geomi(1,atom)).gt.L/2.d0) then
+               r2mod(i-1) = (geomi(1,i)-geomi(1,atom)-L)**2
             else
-               modify_r2(i-1,atom) = (geom(1,i)-geom(1,atom))**2
+               r2mod(i-1) = (geomi(1,i)-geomi(1,atom))**2
             endif
             
             ! Cartesian coordinate Y
-            if (abs(geom(2,i)-geom(2,atom)).gt.L/2.d0) then
-               modify_r2(i-1,atom) = modify_r2(i-1,atom) + (geom(2,i)-geom(2,atom)-L)**2
+            if (abs(geomi(2,i)-geomi(2,atom)).gt.L/2.d0) then
+               r2mod(i-1) = r2mod(i-1) + (geomi(2,i)-geomi(2,atom)-L)**2
             else
-               modify_r2(i-1,atom) = modify_r2(i-1,atom) + (geom(2,i)-geom(2,atom))**2
+               r2mod(i-1) = r2mod(i-1) + (geomi(2,i)-geomi(2,atom))**2
             endif
             
             ! Cartesian coordinate Y
-            if (abs(geom(3,i)-geom(3,atom)).gt.L/2.d0) then
-               modify_r2(i-1,atom) = modify_r2(i-1,atom) + (geom(3,i)-geom(3,atom)-L)**2
+            if (abs(geomi(3,i)-geomi(3,atom)).gt.L/2.d0) then
+               r2mod(i-1) = r2mod(i-1) + (geomi(3,i)-geomi(3,atom)-L)**2
             else
-               modify_r2(i-1,atom) = modify_r2(i-1,atom) + (geom(3,i)-geom(3,atom))**2
+               r2mod(i-1) = r2mod(i-1) + (geomi(3,i)-geomi(3,atom))**2
             endif
-            !modify_r2(i-1) = (geom(1,i)-geom(1,atom))**2 + (geom(2,i)-geom(2,atom))**2 &
-            !    + (geom(3,i)-geom(3,atom))**2
-            !write(*,*) "Modify r2, corresponding r2"
-            !write(*,'(2f15.10)') modify_r2(i-1,atom), r2(i-1,atom)
-            !write(*,*) " "
-            !    write(*,*) "DELTA V"
-            !    write(*,*) deltaV
-            deltaV = deltaV + (1.d0/modify_r2(i-1,atom)**6-1.d0/modify_r2(i-1,atom)**3- & 
+
+            dV = dV + (1.d0/r2mod(i-1)**6-1.d0/r2mod(i-1)**3- & 
             1.d0/r2(i-1,atom)**6+1.d0/r2(i-1,atom)**3)
-            !    write(*,*) "DELTA V"
-            !    write(*,*) deltaV
-            !    write(*,*) " "
         enddo
 
-        !write(*,*) "Modified R2 matrix"
-        !write(*,'(3f15.10)') modify_r2
-
-        deltaV = 4.d0*deltaV
+        dV = 4.d0*dV
 
         return
 
-    end subroutine delta_pot
+    end subroutine delta_V
+
 
     ! *********************************************************************************************
 
@@ -276,54 +256,62 @@ module LJfluid
     !                 SUBROUTINE 4: Simulation of the LJ fluid with MC tecniques
     ! *********************************************************************************************
     
-    subroutine montecarlo(n, geom0, L, rc, V, V_rc, temp, maxcycle)
+    subroutine montecarlo(n, geom0, L, rc, V, Vrc, T, maxcycle)
 
         ! Declaration statements
-        integer :: i,j,k, counter, atom, max_hist
+        implicit none
+        ! rho = mean density of the fluid of particles N/V 
+        ! pi = 3.1416...
+        ! maxcycle = number of MC cycles, set by the user in the main.
+        ! dr = random displacement of one particle (tagged with atom) in the trial move
+        ! dV = energy change for the corresponding trial move dr
+        ! T = temperature
+        integer :: i, j, k, counter, atom, max_hist
         integer, intent(in) :: n, maxcycle
         real(kind=8), dimension(3,n) :: geom0, geomi
         real(kind=8), dimension(n-1,n-1) :: r2
-        real(kind=8), dimension(n-1,n-1) :: modify_r2
-        real(kind=8), dimension(3) :: xyz
+        real(kind=8), dimension(n-1) :: r2mod
         real(kind=8), allocatable :: hist(:,:)
-        real(kind=8) :: L, rc, V, V_rc, V_new, aux, delta_r, delta_V, a, temp, increment, rho, pi
-        real(kind=8) :: deltaV, V1
+        real(kind=8) :: aux, L, rc, V, Vrc, dr, dV, a, T, increment, rho, pi
+
 
         ! Execution zone
-
         ! The potential energy for the initial geometry is calculated
-        call initial_V(n, geom0, L, r2, rc, V, V_rc)
+        call initial_V(n, geom0, L, r2, rc, V, Vrc)
 
         ! The mean density is computed
         rho = n/(L**3)
         ! Calculate pi
         pi = 4*atan(1.0)
 
-        open(25, file="v_out", action="write")
-        open(27, file="histogram", action="write")
+        open(25, file="V_out", action="write")
+        open(26, file="g_out", action="write")
 
         increment = 0.05
         max_hist = int(L/(2*increment))+1
-        ! hist is the matrix which stored the values of delta_r, 2*delta_r... in its first 
+        ! hist is the matrix which stored the values of dr, 2*dr... in its first 
         ! column and the times in which each interval is present over the n different structures
         allocate(hist(5,max_hist))
 
         ! Initialization of the counter of MC cycles
         counter = 0
         do while (counter .lt. maxcycle) 
+            ! Increment the counter of MC cycles in a unit
             counter = counter + 1
             write(25,*) counter, V 
+
             ! A random atom is chosen and displaced a random quantity between -0.5 and 0.5 units
             call random_number(aux)
             atom = int(1+aux*n)
-            call random_number(delta_r)
-            delta_r = (delta_r-0.5)*(L/3.d0)
-            !write(*,'("delta_r, 1f10.6")') delta_r
+            call random_number(dr)
+            dr = (dr-0.5)*(L/3.d0)
+
             ! The geometry in cycle i is geomi, i.e., the initial geometry with the random 
-            ! displacement of atom i
+            ! displacement of atom i, dr
             geomi = geom0
-            geomi(:,atom) = geomi(:,atom)+delta_r
-            ! Condition of restricted coordinates to a simulation box when atom is moved delta_r
+            geomi(:,atom) = geomi(:,atom)+dr
+            ! Apply the condition of restricted coordinates to the simulation box when the atom
+            ! is moved dr
             do i = 1, 3
                 if (geomi(i,atom) .lt. 0.d0) then
                     geomi(i,atom) = geomi(i,atom) + L
@@ -333,54 +321,54 @@ module LJfluid
             enddo
 
             ! The energy change associated with the trial move is computed using the subroutine
-            ! delta_pot
-            call delta_pot(n, geomi, L, r2, rc, atom, modify_r2, deltaV)
+            ! delta_V
+            call delta_V(n, geomi, L, r2, rc, atom, r2mod, dV)
             
-            ! The program checks if the trial move is accepted or not. 
-            if (deltaV .lt. 0.d0) then
+            ! The program checks if the trial move is accepted or not
+            if (dV .lt. 0.d0) then
                 ! If the energy change associated with the trial move is negative it means that
                 ! the total energy will be lower so the new configuration is more stable. Thus,
                 ! the trial move is accepted and the values of geometry, potential and r^2 array
                 ! are update
                 geom0 = geomi
-                V = V + deltaV
+                V = V + dV
                 do i = 1, atom-1
-                    r2(atom-1,i) = modify_r2(atom-1,i)
+                    r2(atom-1,i) = r2mod(i)
                 enddo
                 do i = atom+1, n
-                    r2(i-1,atom) = modify_r2(i-1,atom)
+                    r2(i-1,atom) = r2mod(i-1)
                 enddo
             else
                 ! Is the energy change associated with the trial move is positive, the procedure
                 ! to decide is the trial move is accepted or not consists in computes the 
-                ! Boltzmann factor (which will be close to 1 if deltaV is midly positive compared
+                ! Boltzmann factor (which will be close to 1 if dV is midly positive compared
                 ! to kT and 0 if it is larger) and compared it with a random number (a) between 0
                 ! and 1. If a is smaller than the Boltzmann factor the trial move is accepted,
                 ! otherwise it is rejected
                 call random_number(a)
-                if (a .lt. exp(-deltaV)/temp) then
+                if (a .lt. exp(-dV)/T) then
                     ! Trial move accepted
                     geom0 = geomi
-                    V = V + deltaV
+                    V = V + dV
                     do i = 1, atom-1
-                        r2(atom-1,i) = modify_r2(atom-1,i)
+                        r2(atom-1,i) = r2mod(i)
                     enddo
                     do i = atom+1, n
-                        r2(i-1,atom) = modify_r2(i-1,atom)
+                        r2(i-1,atom) = r2mod(i-1)
                     enddo
                 endif
                     ! Trial move rejected
             endif
 
             ! Pair correlation function g(r)
-            ! Calculation of the number of structures present on each delta_r interval
-            if (mod(counter,100) .eq. 0) then
+            ! Calculation of the number of structures present on each dr interval
+            if (mod(counter,5*n) .eq. 0) then
                 do k = 1, max_hist
                     do i = 2, n
                         do j = 1, i-1
                             if (sqrt(r2(i-1,j)) .gt. (k-1)*increment .and. sqrt(r2(i-1,j)) .lt.&
                             k*increment) then
-                                ! Compute delta_r, 2*delta_r...
+                                ! Compute dr, 2*dr...
                                 hist(1,k) = k*increment
                                 ! Compute the number of structures on each interval
                                 hist(2,k) = (hist(2,k) + 1)
@@ -397,16 +385,15 @@ module LJfluid
             endif
 
         enddo
-        write(27, '(5f15.3)') hist
+        write(26, '(5f15.3)') hist
         deallocate(hist)
 
         ! Final geometry configuration is written on final_geom.xyz file
-        open(26, file="final_geom.xyz", action="write")
-        write(26,'(I4)') n
-        write(26,*) " "
+        open(27, file="final_geom.xyz", action="write")
+        write(27,'(I4)') n
+        write(27,*) " "
         do i = 1, n
-            xyz = geom0(:,i)
-            write(26,'( "H", f10.6, f10.6, f10.6)' ) xyz(1), xyz(2), xyz(3)
+            write(27,'( "H", f10.6, f10.6, f10.6)' ) geom0(1,i), geom0(2,i), geom0(3,i)
         enddo
         write(*,*) "MC stop OK"
 

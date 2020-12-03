@@ -13,7 +13,7 @@ plt.rc('font', **font)
 inc = []
 n = []
 g = []
-f = open('histogram','r')
+f = open('g_out','r')
 line = f.readline()
 while line:
     l = line.split()
@@ -29,7 +29,7 @@ p = fig.add_subplot(111)
 #p.plot(d,E,'ro', markersize=4)
 #p.plot(cycle,pot,'ro')
 #p.plot(inc,n,'ro', markersize=6)
-#p.plot(inc,g,'ro', markersize=6)
+p.plot(inc,g,'ro', markersize=5)
 p.plot(inc,g,'r', linewidth=2.0)
 axes = plt.gca()
 #axes.set_xlim([min(cycle),max(cycle)])
@@ -40,4 +40,4 @@ p.set_ylabel('g(r)')
 #plt.hlines(0.0, min(cycle), max(cycle), colors='k', linestyles='dashed',
 #        linewidth=1.0)
 plt.show()
-fig.savefig('correlation.png')
+fig.savefig('gr.png')

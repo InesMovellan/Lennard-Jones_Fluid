@@ -12,10 +12,10 @@ plt.rc('font', **font)
 
 cycle = []
 pot = []
-f = open('v_out','r')
-for i in range(0,1000):
+f = open('V_out','r')
+for i in range(0,5000):
     line = f.readline()
-for i in range(0,999000):
+for i in range(0,995000):
     line = f.readline()
     l = line.split()
     cycle.append(float(l[0]))
@@ -48,4 +48,4 @@ p.set_ylabel('V (reduce units)')
 #plt.hlines(0.0, min(cycle), max(cycle), colors='k', linestyles='dashed',
 #        linewidth=1.0)
 plt.show()
-fig.savefig('MC_pot.png')
+fig.savefig('V_vs_cycleMC.png')
