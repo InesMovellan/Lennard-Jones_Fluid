@@ -68,4 +68,11 @@ results.
 I rewrite the way to implement PBC with the nearest convention image. I have reduced the 
 number of if-else structures I use from 8 to 3. I just implemented it in initial_energy
 subroutine cause the delta_energy subroutine it is not working yet.
+The implementation of PBC have been also included in delta_pot subroutine, providing the same 
+results as initial_V subroutine for 1 montecarlo cycle. The next step is to solve the problem 
+in potential for larger montecarlo cycles
 
+03/11/2020
+The subroutine to compute only deltaV on each montecarlo step is implemented and works properly.
+The shape of the function g(r) is not correct at all, it is not smooth. The code is now stetic and
+easy to read, and properly docummented.
