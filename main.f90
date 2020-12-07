@@ -1,5 +1,5 @@
 ! Main code that uses the module LJfluid.f90 to carry out a simulation of the Lennard-Jones fluid
-! of N particles at volume V = L^3 and temperature T, i.e., in the microcanonical ensemble, using
+! of N particles at volume V = L^3 and temperature T, i.e., in the canonical ensemble, using
 ! Monte Carlo techniques.
 
 ! Author: Inés Sánchez de Movellán Sáiz
@@ -21,13 +21,14 @@ program main
     ! T = temperature
     integer :: n, cycles
     real(kind=8), allocatable :: coord(:,:)
-    real(kind=8) :: L, rc, V, Vrc, T
+    real(kind=8) :: L, rc, V, Vrc, T, t0, tf
 
 
     ! Execution zone
+    call cpu_time(t0)
     ! The user set the values of n, L rc, T and cycles. Magnitudes (L, rc and T) are in reduce
     ! units
-    n = 120
+    n = 100
     L = 6.d0
     rc = 3.d0
     T = 1.268
@@ -38,5 +39,8 @@ program main
 
     ! Call montecarlo subroutine of LJfluid to perform the simulation of the fluid
     call montecarlo(n, coord, L, rc, V, Vrc, T, cycles)
+    call cpu_time(tf)
+    print '("Time = ",f10.5," seconds.")', tf-t0
+
     
 end program main

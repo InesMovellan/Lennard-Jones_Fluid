@@ -55,7 +55,7 @@ module LJfluid
     
         ! Declaration statements
         implicit none
-        integer :: i, j
+        integer :: i
         integer, intent(in) :: n  
         real(kind=8), intent(in) :: L  
         real(kind=8), allocatable, intent(inout) :: geom0(:,:)
@@ -165,7 +165,7 @@ module LJfluid
     subroutine delta_V(n, geomi, L, r2, rc, atom, r2mod, dV)
 
         ! Declaration statements
-        integer :: i, j
+        integer :: i
         integer, intent(in) :: n, atom
         real(kind=8), intent(in) :: L, rc
         real(kind=8), dimension(3,n), intent(in) :: geomi
@@ -266,12 +266,13 @@ module LJfluid
         ! dr = random displacement of one particle (tagged with atom) in the trial move
         ! dV = energy change for the corresponding trial move dr
         ! T = temperature
-        integer :: i, j, k, counter, atom, max_hist
+        integer :: i, j, k, counter, atom, rmax
         integer, intent(in) :: n, maxcycle
         real(kind=8), dimension(3,n) :: geom0, geomi
         real(kind=8), dimension(n-1,n-1) :: r2
         real(kind=8), dimension(n-1) :: r2mod
-        real(kind=8), allocatable :: hist(:,:)
+        real(kind=8), allocatable :: delta(:), nstr(:), vol(:), g(:)
+        real(kind=8), allocatable :: dat(:,:)
         real(kind=8) :: aux, L, rc, V, Vrc, dr, dV, a, T, increment, rho, pi
 
 
@@ -284,34 +285,47 @@ module LJfluid
         ! Calculate pi
         pi = 4*atan(1.0)
 
-        open(25, file="V_out", action="write")
-        open(26, file="g_out", action="write")
+        open(25, file="V.out", action="write")
+        open(26, file="g.out", action="write")
 
+        ! Definition of increment and maximun r for the calculation of the pair correlation
+        ! function. The maximun value of r is the half of simulation box length (L/2) divided
+        ! by the increment, i.e., the number of intervals of size = increment (increment, 
+        ! 2*increment, 3*increment,..., L/2)
         increment = 0.05
-        max_hist = int(L/(2*increment))+1
-        ! hist is the matrix which stored the values of dr, 2*dr... in its first 
-        ! column and the times in which each interval is present over the n different structures
-        allocate(hist(5,max_hist))
+        rmax = int(L/(2*increment))+1
+        ! Allocate the array which stores increment, 2*increment, 3*incremet...
+        !allocate(delta(rmax))
+        !delta = 0.d0
+        ! Allocate the array which stores the number of structures on each (n-1)*increment, 
+        ! n*increment interval
+        !allocate(nstr(rmax))
+        !nstr = 0.d0
+        ! Allocate the array which stores the volume of each spherical shell
+        !allocate(vol(rmax))
+        !vol = 0.d0
+        ! Allocate the array which stores the pair correlation function g(r)
+        !allocate(g(rmax))
+        !g = 0.d0
+        allocate(dat(4,rmax))
 
         ! Initialization of the counter of MC cycles
         counter = 0
         do while (counter .lt. maxcycle) 
             ! Increment the counter of MC cycles in a unit
             counter = counter + 1
-            write(25,*) counter, V 
 
             ! A random atom is chosen and displaced a random quantity between -0.5 and 0.5 units
             call random_number(aux)
             atom = int(1+aux*n)
             call random_number(dr)
-            dr = (dr-0.5)*(L/3.d0)
-
+            dr = (dr-0.5)*0.1
             ! The geometry in cycle i is geomi, i.e., the initial geometry with the random 
             ! displacement of atom i, dr
             geomi = geom0
             geomi(:,atom) = geomi(:,atom)+dr
-            ! Apply the condition of restricted coordinates to the simulation box when the atom
-            ! is moved dr
+            ! Apply the condition of restricted coordinates to the simulation box when the 
+            ! atom is moved dr
             do i = 1, 3
                 if (geomi(i,atom) .lt. 0.d0) then
                     geomi(i,atom) = geomi(i,atom) + L
@@ -360,33 +374,45 @@ module LJfluid
                     ! Trial move rejected
             endif
 
+
             ! Pair correlation function g(r)
             ! Calculation of the number of structures present on each dr interval
-            if (mod(counter,5*n) .eq. 0) then
-                do k = 1, max_hist
+            if (mod(counter,10*n) .eq. 0) then
+                do k = 1, rmax
+                    dat(1,k) = k*increment
                     do i = 2, n
                         do j = 1, i-1
-                            if (sqrt(r2(i-1,j)) .gt. (k-1)*increment .and. sqrt(r2(i-1,j)) .lt.&
-                            k*increment) then
-                                ! Compute dr, 2*dr...
-                                hist(1,k) = k*increment
-                                ! Compute the number of structures on each interval
-                                hist(2,k) = (hist(2,k) + 1)
-                                ! Compute the volume of spherical shell
-                                hist(3,k) = 4*pi*r2(i-1,j)*increment
+                            ! Compute increment, 2*increment...
+                            if (sqrt(r2(i-1,j)) .gt. (k-1)*increment .and. & 
+                                sqrt(r2(i-1,j)) .lt. k*increment) then
+                                ! Compute the number of structures on each interval N(r+increment)
+                                dat(2,k) = (dat(2,k) + 1)
+                                ! Compute the volume of spherical shell V(r+increment)
+                                dat(3,k) = 4.d0*pi*r2(i-1,j)*increment
                             endif
                         enddo
                     enddo
-                    ! Compute the density at r
-                    hist(4,k) = hist(2,k)/hist(3,k)
-                    ! Compute g(r)
-                    hist(5,k) = hist(4,k)/(rho*counter)
+                    ! Calculation of g(r) = rho(r)/rho = N(r+increment)/(V(r+increment)*rho)
+                    if (dat(3,k) .eq. 0) then
+                    else
+                        dat(4,k) = dat(2,k)/(dat(3,k)*rho)
+                    endif
                 enddo
             endif
-
+            ! Write the potential energy in output file V.out
+            if (mod(counter,100*n) .eq. 0) then
+                write(25,*) counter, V 
+            endif
         enddo
-        write(26, '(5f15.3)') hist
-        deallocate(hist)
+        ! Write the pair correlation function and associated quantities in output file g.out
+        write(26, '(4f18.5)') dat
+        deallocate(dat)
+
+        !deallocate(delta)
+        !deallocate(nstr)
+        !deallocate(vol)
+        !deallocate(g)
+
 
         ! Final geometry configuration is written on final_geom.xyz file
         open(27, file="final_geom.xyz", action="write")

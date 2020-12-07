@@ -76,3 +76,13 @@ in potential for larger montecarlo cycles
 The subroutine to compute only deltaV on each montecarlo step is implemented and works properly.
 The shape of the function g(r) is not correct at all, it is not smooth. The code is now stetic and
 easy to read, and properly docummented.
+
+04/11/2020
+Maybe it will be ok to construct an OUTPUT FILE where I put the initial coordinates, initial 
+potential, conditions like N, V... and final results? También meter las periodic boundary 
+conditions in a different file.
+
+gfortran-10 -O3 -c main.f90
+gfortran-10 -O3 -c LJfluid.f90
+This option optimize the code
+

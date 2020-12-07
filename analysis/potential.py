@@ -12,10 +12,10 @@ plt.rc('font', **font)
 
 cycle = []
 pot = []
-f = open('V_out','r')
-for i in range(0,5000):
+f = open('V.out','r')
+for i in range(0,1):
     line = f.readline()
-for i in range(0,995000):
+for i in range(1,700):
     line = f.readline()
     l = line.split()
     cycle.append(float(l[0]))
