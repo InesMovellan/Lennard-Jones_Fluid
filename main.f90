@@ -13,13 +13,14 @@ program main
     implicit none
     ! n = number of particles in the simulation box
     ! cycles = number of Monte Carlo steps
+    ! therm = number of Monte Carlo steps that will be skipped for the calculation of g(r)
     ! coord(:,:) = 3 columns N rows matrix which stores (X, Y, Z) coordinates of each particle
     ! L = simulation box side length
     ! rc = cutoff radius from which the interaction between two atoms is neglected
     ! V = potential energy of the system
     ! Vrc = potential energy of the system at r = rc
     ! T = temperature
-    integer :: n, cycles
+    integer :: n, cycles, therm
     real(kind=8), allocatable :: coord(:,:)
     real(kind=8) :: L, rc, V, Vrc, T, t0, tf
 
@@ -32,13 +33,14 @@ program main
     L = 6.d0
     rc = 3.d0
     T = 1.268
-    cycles = 10**6
+    cycles = 10**7
+    therm = 5*10**5
 
     ! Call initial_geom subroutine of LJfluid to set the initial coord(:,:) matrix
     call initial_geom(n, L, coord)
 
     ! Call montecarlo subroutine of LJfluid to perform the simulation of the fluid
-    call montecarlo(n, coord, L, rc, V, Vrc, T, cycles)
+    call montecarlo(n, coord, L, rc, V, Vrc, T, cycles,therm)
     call cpu_time(tf)
     print '("Time = ",f10.5," seconds.")', tf-t0
 

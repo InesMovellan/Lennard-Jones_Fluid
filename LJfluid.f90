@@ -162,12 +162,12 @@ module LJfluid
     !                 SUBROUTINE 3: Simulation of the LJ fluid with MC tecniques
     ! *********************************************************************************************
 
-    subroutine delta_V(n, geomi, L, r2, rc, atom, r2mod, dV)
+    subroutine delta_V(n, geomi, L, r2, atom, r2mod, dV)
 
         ! Declaration statements
         integer :: i
         integer, intent(in) :: n, atom
-        real(kind=8), intent(in) :: L, rc
+        real(kind=8), intent(in) :: L
         real(kind=8), dimension(3,n), intent(in) :: geomi
         real(kind=8), intent(inout) :: dV
         real(kind=8), dimension(n-1,n-1), intent(out) :: r2
@@ -256,7 +256,7 @@ module LJfluid
     !                 SUBROUTINE 4: Simulation of the LJ fluid with MC tecniques
     ! *********************************************************************************************
     
-    subroutine montecarlo(n, geom0, L, rc, V, Vrc, T, maxcycle)
+    subroutine montecarlo(n, geom0, L, rc, V, Vrc, T, maxcycle, therm)
 
         ! Declaration statements
         implicit none
@@ -266,12 +266,11 @@ module LJfluid
         ! dr = random displacement of one particle (tagged with atom) in the trial move
         ! dV = energy change for the corresponding trial move dr
         ! T = temperature
-        integer :: i, j, k, counter, atom, rmax
-        integer, intent(in) :: n, maxcycle
+        integer :: i, j, k, counter, atom, rmax, numMC
+        integer, intent(in) :: n, maxcycle, therm
         real(kind=8), dimension(3,n) :: geom0, geomi
         real(kind=8), dimension(n-1,n-1) :: r2
         real(kind=8), dimension(n-1) :: r2mod
-        real(kind=8), allocatable :: delta(:), nstr(:), vol(:), g(:)
         real(kind=8), allocatable :: dat(:,:)
         real(kind=8) :: aux, L, rc, V, Vrc, dr, dV, a, T, increment, rho, pi
 
@@ -280,13 +279,26 @@ module LJfluid
         ! The potential energy for the initial geometry is calculated
         call initial_V(n, geom0, L, r2, rc, V, Vrc)
 
-        ! The mean density is computed
-        rho = n/(L**3)
         ! Calculate pi
         pi = 4*atan(1.0)
+        ! The mean density is computed
+        rho = n/(L**3)
+        !rho = n/((4.d0/3.d0)*pi*(L/2.d0)**3)
 
         open(25, file="V.out", action="write")
+        write(25,*) "Potential energy of the fluid of Lennard Jones particles"
+        write(25,*) " "
+        write(25,*) "Column 1: Monte Carlo step"
+        write(25,*) "Column 2: Potential energy in reduced units"
+        write(25,*) " "
         open(26, file="g.out", action="write")
+        write(26,*) "Pair correlation function of the fluid of Lennard Jones particles"
+        write(26,*) " "
+        write(26,*) "Column 1: interatomic distance r in reduced units (r/sigma)"
+        write(26,*) "Column 2: number of particles between each interval r+dr (dN)"
+        write(26,*) "Column 3: volume of each spherical shell dV in reduced units"
+        write(26,*) "Column 4: pair correlation function g(r) in reduced units"
+        write(26,*) " "
 
         ! Definition of increment and maximun r for the calculation of the pair correlation
         ! function. The maximun value of r is the half of simulation box length (L/2) divided
@@ -294,23 +306,21 @@ module LJfluid
         ! 2*increment, 3*increment,..., L/2)
         increment = 0.05
         rmax = int(L/(2*increment))+1
-        ! Allocate the array which stores increment, 2*increment, 3*incremet...
-        !allocate(delta(rmax))
-        !delta = 0.d0
-        ! Allocate the array which stores the number of structures on each (n-1)*increment, 
-        ! n*increment interval
-        !allocate(nstr(rmax))
-        !nstr = 0.d0
-        ! Allocate the array which stores the volume of each spherical shell
-        !allocate(vol(rmax))
-        !vol = 0.d0
-        ! Allocate the array which stores the pair correlation function g(r)
-        !allocate(g(rmax))
-        !g = 0.d0
+
+        ! The matrix dat is allocated. The required data will be stored in this matrix, i.e., the
+        ! first column will store k*increment = increment, 2*increment..., the second column
+        ! the number of structures on each spherical shell, the third column the volume of each 
+        ! spherical shell and the last one the value of g(r).
         allocate(dat(4,rmax))
+        ! The column which will store the volume is initialized with a number different from 
+        ! zero to avoid zero in the denominators 
+        dat(3,:) = 1.d0
 
         ! Initialization of the counter of MC cycles
         counter = 0
+
+        ! Initialization of the number of snapshots that will be use to compute g(r)
+        numMC = 0
         do while (counter .lt. maxcycle) 
             ! Increment the counter of MC cycles in a unit
             counter = counter + 1
@@ -336,7 +346,7 @@ module LJfluid
 
             ! The energy change associated with the trial move is computed using the subroutine
             ! delta_V
-            call delta_V(n, geomi, L, r2, rc, atom, r2mod, dV)
+            call delta_V(n, geomi, L, r2, atom, r2mod, dV)
             
             ! The program checks if the trial move is accepted or not
             if (dV .lt. 0.d0) then
@@ -376,43 +386,44 @@ module LJfluid
 
 
             ! Pair correlation function g(r)
-            ! Calculation of the number of structures present on each dr interval
-            if (mod(counter,10*n) .eq. 0) then
-                do k = 1, rmax
-                    dat(1,k) = k*increment
-                    do i = 2, n
-                        do j = 1, i-1
-                            ! Compute increment, 2*increment...
-                            if (sqrt(r2(i-1,j)) .gt. (k-1)*increment .and. & 
-                                sqrt(r2(i-1,j)) .lt. k*increment) then
-                                ! Compute the number of structures on each interval N(r+increment)
-                                dat(2,k) = (dat(2,k) + 1)
-                                ! Compute the volume of spherical shell V(r+increment)
-                                dat(3,k) = 4.d0*pi*r2(i-1,j)*increment
-                            endif
+            ! The firsts MC steps are not considered (thermalization) set by the user in the main
+            if (counter > therm) then
+                if (mod(counter,10*n) .eq. 0) then
+                    numMC = numMC + 1
+                    do k = 1, rmax
+                        ! Compute the array of interatomic distances that we will take into account
+                        ! increment, 2*increment...
+                        dat(1,k) = k*increment
+                        do i = 2, n
+                            do j = 1, i-1
+                                if (sqrt(r2(i-1,j)) .gt. (k-1)*increment .and. & 
+                                    sqrt(r2(i-1,j)) .lt. k*increment) then
+                                    ! Compute the number of particles on each interval dN
+                                    ! N(r+increment)-N(r)
+                                    dat(2,k) = (dat(2,k) + 1)
+                                    ! Compute the volume of spherical shell dV 
+                                    ! V(r+increment)-V(r)
+                                    dat(3,k) = 4.d0*pi*r2(i-1,j)*increment
+                                endif
+                            enddo
                         enddo
                     enddo
-                    ! Calculation of g(r) = rho(r)/rho = N(r+increment)/(V(r+increment)*rho)
-                    if (dat(3,k) .eq. 0) then
-                    else
-                        dat(4,k) = dat(2,k)/(dat(3,k)*rho)
-                    endif
-                enddo
+                endif
             endif
+
             ! Write the potential energy in output file V.out
             if (mod(counter,100*n) .eq. 0) then
                 write(25,*) counter, V 
             endif
-        enddo
+        enddo ! Monte Carlo end
+
+        ! Calculate the mean number of structures between each (k-1)*increment, k*increment
+        dat(2,:) = dat(2,:)/numMC
+        ! Calculation of the pair correlation function g(r) 
+        dat(4,:) = dat(2,:)/(dat(3,:)*rho)
         ! Write the pair correlation function and associated quantities in output file g.out
-        write(26, '(4f18.5)') dat
+        write(26, '(4f17.10)') dat
         deallocate(dat)
-
-        !deallocate(delta)
-        !deallocate(nstr)
-        !deallocate(vol)
-        !deallocate(g)
-
 
         ! Final geometry configuration is written on final_geom.xyz file
         open(27, file="final_geom.xyz", action="write")
@@ -421,7 +432,6 @@ module LJfluid
         do i = 1, n
             write(27,'( "H", f10.6, f10.6, f10.6)' ) geom0(1,i), geom0(2,i), geom0(3,i)
         enddo
-        write(*,*) "MC stop OK"
 
         return
 

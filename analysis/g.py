@@ -14,14 +14,20 @@ inc = []
 n = []
 g = []
 f = open('g.out','r')
+for i in range(0,7):
+    line = f.readline()
+
 line = f.readline()
 while line:
     l = line.split()
     inc.append(float(l[0]))
-    n.append(float(l[1]))
+    #g.append(float(l[1]))
     g.append(float(l[3]))
     line = f.readline()
 f.close()
+
+#n = np.asarray(n)
+#n = n/max(n)
 
 #fit = np.polyfit(inc,g,10)
 #inc1 = np.linspace(min(inc),max(inc))
@@ -29,19 +35,12 @@ f.close()
 # Representation of the energy against the distortion coordinate
 fig = plt.figure()
 p = fig.add_subplot(111)
-#p.plot(d,E,'ro', markersize=4)
-#p.plot(cycle,pot,'ro')
-#p.plot(inc,n,'ro', markersize=6)
 p.plot(inc,g,'ro', markersize=5)
 p.plot(inc,g,'r', linewidth=2.0)
-#p.plot(inc1,g1,'r',linewidth=2.0)
 axes = plt.gca()
 #axes.set_xlim([min(cycle),max(cycle)])
-p.set_xlabel('r') 
+p.set_xlabel('r/$\sigma$') 
 p.set_ylabel('g(r)')   
-#plt.title('K$_2$CuF$_4$ I4/mmm to Cmca', fontsize=16)
-#plt.legend()
-#plt.hlines(0.0, min(cycle), max(cycle), colors='k', linestyles='dashed',
-#        linewidth=1.0)
+plt.title('Pair correlation function', fontsize=16)
 plt.show()
 fig.savefig('gr.png')
