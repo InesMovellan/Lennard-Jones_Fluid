@@ -20,12 +20,13 @@ program main
     ! V = potential energy of the system
     ! Vrc = potential energy of the system at r = rc
     ! T = temperature
-    integer :: n, cycles, therm
+    integer :: n, cycles, therm, nthr
     real(kind=8), allocatable :: coord(:,:)
     real(kind=8) :: L, rc, V, Vrc, T
 
 
     ! Execution zone
+
     ! The user set the values of n, L rc, T and cycles. Magnitudes (L, rc and T) are in reduce
     ! units
     n = 100
@@ -34,12 +35,13 @@ program main
     T = 1.268
     cycles = 10**7
     therm = 5*10**5
+    nthr = 2
 
     ! Call initial_geom subroutine of LJfluid to set the initial coord(:,:) matrix
     call initial_geom(n, L, coord)
 
     ! Call montecarlo subroutine of LJfluid to perform the simulation of the fluid
-    call montecarlo(n, coord, L, rc, V, Vrc, T, cycles,therm)
+    call montecarlo(n, coord, L, rc, V, Vrc, T, cycles, therm, nthr)
 
     
 end program main

@@ -1,0 +1,29 @@
+Time in the main:
+./main.exe
+Time =   80.74272 seconds.
+
+Time in the MC subroutine (to compare with parallel version)
+./main.exe
+Time =   81.79808 seconds.
+
+
+Time in parallel version for 10**6 MC steps (paralelization in delta_V subroutine) nthr = 4
+./main.exe
+Time =    6.66081 seconds. 
+
+Time in serial version for 10**6 MC steps
+./main.exe
+Time =    7.32852 seconds.
+
+
+Time in parallel version for 10**7 MC steps (paralelization in delta_V subroutine) nthr = 4
+./main.exe
+Time =   86.41798 seconds. 
+
+Time in serial version for 10**7 MC steps
+./main.exe
+Time =   83.28517 seconds.
+
+
+Time in parallel version for 10**7 MC steps (paralelization in delta_V subroutine), nthr = 6
+Time =   96.60053 seconds.
