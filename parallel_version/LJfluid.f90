@@ -1,22 +1,26 @@
 ! Module which carried out the Lennard-Jones simulation in a periodic box using Monte Carlo 
 ! algorithm. It contains several subroutines:
-! Serial version of the module.
+! Parallel version of the module.
 
 ! SUBROUTINE 1: initial_geom
 !               Sets the initial geometry for n Lennard-Jones particles in a cubic box, which 
 !               size (and also n) is chosen by the user in main.f90
 
-! SUBROUTINE 2: initial_V
+! SUBROUTINE 2: pbc
+!               Apply periodic boundary conditions over a pair of atoms i and j received as   
+!               arguments, following the nearest image convention                             
+
+! SUBROUTINE 3: initial_V
 !               Computes the initial potential energy associated with the initial geometry
 !               configuration of the particles obtained with initial_geom subroutine. Since the
 !               model of the system is a cubic box surrounded by an infinite number of replicas,
 !               the calculation of the energy is done with periodic boundary conditions (PBC).
 
-! SUBROUTINE 3: delta_V
+! SUBROUTINE 4: delta_V
 !               Calculates the energy change between one trial move performed in montecarlo
 !               subroutine and the previous geometry configuration (also with PBC).
 
-! SUBROUTINE 4: montecarlo
+! SUBROUTINE 5: montecarlo
 !               Monte Carlo subroutine which performs the sampling of structures over the number
 !               of cycles selected by the user in the main.f90. The pair correlation function 
 !               g(r) is also computed in this subroutine.
@@ -30,7 +34,7 @@ module LJfluid
     ! Include openMP library
     use omp_lib
     implicit none
-    public :: initial_geom, initial_V, delta_V, montecarlo
+    public :: initial_geom, pbc, initial_V, delta_V, montecarlo
     contains
     ! List of common variables. Variables which are particular of each subroutine are described
     ! on the subroutine
@@ -95,7 +99,54 @@ module LJfluid
 
 
     ! *********************************************************************************************
-    !              SUBROUTINE 2: Calculate the initial potential energy with PBC
+    !           SUBROUTINE 2: Apply periodic boundary conditions over determinated geometry
+    ! *********************************************************************************************
+
+    subroutine pbc(n, geom, L, r2, i, j)
+
+        ! Declaration statements
+        implicit none
+        integer, intent(in) :: n, i, j
+        real(kind=8), dimension(3,n), intent(in) :: geom
+        real(kind=8), intent(in) :: L
+        real(kind=8), dimension(n-1,n-1), intent(inout) :: r2
+
+
+        ! Execution zone
+        ! Periodic boundary conditions using the nearest image convention in which
+        ! we compute the square of the distance of a pair of atoms (i and j) which interatomic
+        ! distance is lower than L/2.
+
+        ! Cartesian coordinate X
+        if (abs(geom(1,i)-geom(1,j)).gt.L/2.d0) then
+            r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2
+        else
+            r2(i-1,j) = (geom(1,i)-geom(1,j))**2
+        endif
+
+        ! Cartesian coordinate Y
+        if (abs(geom(2,i)-geom(2,j)).gt.L/2.d0) then
+            r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)-L)**2
+        else
+            r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j))**2
+        endif
+
+        ! Cartesian coordinate Z
+        if (abs(geom(3,i)-geom(3,j)).gt.L/2.d0) then
+            r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)-L)**2
+        else
+            r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j))**2
+        endif
+
+        return
+
+    end subroutine pbc
+
+
+
+
+    ! *********************************************************************************************
+    !              SUBROUTINE 3: Calculate the initial potential energy with PBC
     ! *********************************************************************************************
 
     subroutine initial_V(n, geom0, L, r2, rc, V, Vrc)
@@ -118,30 +169,7 @@ module LJfluid
 
         do i = 2, n
             do j = 1, i-1
-                ! Periodic boundary conditions using the nearest image convention in which
-                ! we compute the interaction between a pair of atom which interatomic distance
-                ! is less than |L/2|. !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! REVISAR ESTO
-
-                ! Cartesian coordinate X
-                if (abs(geom0(1,i)-geom0(1,j)).gt.L/2.d0) then
-                    r2(i-1,j) = (geom0(1,i)-geom0(1,j)-L)**2
-                else
-                    r2(i-1,j) = (geom0(1,i)-geom0(1,j))**2
-                endif
-
-                ! Cartesian coordinate Y
-                if (abs(geom0(2,i)-geom0(2,j)).gt.L/2.d0) then
-                    r2(i-1,j) = r2(i-1,j) + (geom0(2,i)-geom0(2,j)-L)**2
-                else
-                    r2(i-1,j) = r2(i-1,j) + (geom0(2,i)-geom0(2,j))**2
-                endif
-
-                ! Cartesian coordinate Z
-                if (abs(geom0(3,i)-geom0(3,j)).gt.L/2.d0) then
-                    r2(i-1,j) = r2(i-1,j) + (geom0(3,i)-geom0(3,j)-L)**2
-                else
-                    r2(i-1,j) = r2(i-1,j) + (geom0(3,i)-geom0(3,j))**2
-                endif
+                call pbc(n, geom0, L, r2, i, j)
 
                 ! Calculation of the potential using the cutoff rc
                 if (r2(i-1,j)<rc**2) then
@@ -161,7 +189,7 @@ module LJfluid
 
 
     ! *********************************************************************************************
-    !                 SUBROUTINE 3: Simulation of the LJ fluid with MC tecniques
+    !    SUBROUTINE 4: Compute the change in the potential energy for a trial move of one atom
     ! *********************************************************************************************
 
     subroutine delta_V(n, geomi, L, r2, atom, r2mod, dV, nthr)
@@ -260,7 +288,7 @@ module LJfluid
 
 
     ! *********************************************************************************************
-    !                 SUBROUTINE 4: Simulation of the LJ fluid with MC tecniques
+    !                 SUBROUTINE 5: Simulation of the LJ fluid with MC tecniques
     ! *********************************************************************************************
     
     subroutine montecarlo(n, geom0, L, rc, V, Vrc, T, maxcycle, therm, nthr)
@@ -415,26 +443,22 @@ module LJfluid
 
 
             ! Pair correlation function g(r)
-            ! The firsts MC steps are not considered (thermalization) set by the user in the main
+            ! The first MC steps are not considered (thermalization) set by the user in the main
             if (counter > therm .and. mod(counter,10*n) .eq. 0) then
                 numMC = numMC + 1
-                !$omp parallel do shared(r2, dat) private(i,j,k)
-                do k = 1, rmax
-                    ! Compute the array of interatomic distances that we will take into account
-                    ! increment, 2*increment...
-                    dat(1,k) = k*increment
-                    do i = 2, n
-                        do j = 1, i-1
-                            if (sqrt(r2(i-1,j)) .gt. (k-1)*increment .and. & 
-                                sqrt(r2(i-1,j)) .lt. k*increment) then
-                                ! Compute the number of particles on each interval dN
-                                ! N(r+increment)-N(r)
-                                dat(2,k) = (dat(2,k) + 1)
-                                ! Compute the volume of spherical shell dV 
-                                ! V(r+increment)-V(r)
-                                dat(3,k) = 4.d0*pi*r2(i-1,j)*increment
-                            endif
-                        enddo
+                !$omp parallel do shared(dat) private(i,j,k)
+                do i = 2, n
+                    do j = 1, i-1
+                        call pbc(n, geom0, L, r2, i, j)
+                        k = int(sqrt(r2(i-1,j))/increment)
+                        if (k .le. 60) then
+                            ! Compute the number of particles on each interval dN 
+                            ! N(r+increment)-N(r)
+                            dat(2,k) = dat(2,k) + 1
+                            ! Compute the volume of spherical shell dV 
+                            ! V(r+increment)-V(r)
+                            dat(3,k) = 4.d0*pi*r2(i-1,j)*increment
+                        endif
                     enddo
                 enddo
                 !$omp end parallel do
