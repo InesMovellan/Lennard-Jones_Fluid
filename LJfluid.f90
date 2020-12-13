@@ -117,22 +117,28 @@ module LJfluid
         ! distance is lower than L/2.
 
         ! Cartesian coordinate X
-        if (abs(geom(1,i)-geom(1,j)).gt.L/2.d0) then
+        if (geom(1,i)-geom(1,j).gt.L/2.d0) then
             r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2
+        !else if (geom(1,i)-geom(1,j).lt.(-L/2.d0)) then
+        !    r2(i-1,j) = (geom(1,i)-geom(1,j)+L)**2
         else
             r2(i-1,j) = (geom(1,i)-geom(1,j))**2
         endif
 
         ! Cartesian coordinate Y
-        if (abs(geom(2,i)-geom(2,j)).gt.L/2.d0) then
+        if (geom(2,i)-geom(2,j).gt.L/2.d0) then
             r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)-L)**2
+        !else if (geom(2,i)-geom(2,j).lt.(-L/2.d0)) then
+        !    r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)+L)**2
         else
             r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j))**2
         endif
 
         ! Cartesian coordinate Z
-        if (abs(geom(3,i)-geom(3,j)).gt.L/2.d0) then
+        if (geom(3,i)-geom(3,j).gt.L/2.d0) then
             r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)-L)**2
+        !else if (geom(3,i)-geom(3,j).lt.(-L/2.d0)) then
+        !    r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)+L)**2
         else
             r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j))**2
         endif
@@ -176,7 +182,7 @@ module LJfluid
                     V = V + (1.d0/r2(i-1,j)**6-1.d0/r2(i-1,j)**3) - Vrc
                 endif
             enddo
-        enddo
+         enddo
 
         V = 4.d0*V
 
@@ -323,7 +329,6 @@ module LJfluid
         real(kind=8), allocatable :: dat(:,:)
         real(kind=8) :: aux, L, rc, V, Vrc, dr, dV, a, T, increment, rho, pi, t0, tf
 
-
         ! Execution zone
         call cpu_time(t0)
 
@@ -385,7 +390,7 @@ module LJfluid
             call random_number(aux)
             atom = int(1+aux*n)
             call random_number(dr)
-            dr = (dr-0.5)*0.1
+            dr = (dr-0.5)*0.04
             ! The geometry in cycle i is geomi, i.e., the initial geometry with the random 
             ! displacement of atom i, dr
             geomi = geom0
@@ -451,21 +456,16 @@ module LJfluid
                 numMC = numMC + 1
                 do i = 2, n
                     do j = 1, i-1
-                        !call pbc(n, geom0, L, r2, i, j)
-                        k = int(sqrt(r2(i-1,j))/increment)
+                        call pbc(n, geom0, L, r2, i, j)
+                        k = int((sqrt(r2(i-1,j))/increment)+1)
                         if (k .le. 60) then
-                            !print '("Distance rij = ",f10.5)', r2(i-1,j)
-                            !print '("Index k =  ",I5)', k
                             ! Compute the number of particles on each interval dN 
                             ! N(r+increment)-N(r)
-                            dat(2,k) = dat(2,k) + 1
-                            !print '("dN in k = ",f10.5)', dat(2,k)
-                            !print '("numMC = ",I5)', numMC
+                            dat(2,k) = dat(2,k) + 2
                             ! Compute the volume of spherical shell dV 
                             ! V(r+increment)-V(r)
                             dat(3,k) = 4.d0*pi*r2(i-1,j)*increment
                         endif
-                        !write(*,*) " "
                     enddo
                 enddo
             endif
