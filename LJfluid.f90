@@ -60,11 +60,11 @@ module LJfluid
     
         ! Declaration statements
         implicit none
-        integer :: i
+        integer :: i, j
         integer, intent(in) :: n  
         real(kind=8), intent(in) :: L  
         real(kind=8), allocatable, intent(inout) :: geom0(:,:)
-
+        real(kind=8) :: r
 
         ! Execution zone
         ! The initial coordinates of the particles are stored in matrix geom0, which has the
@@ -77,9 +77,22 @@ module LJfluid
         ! The matrix geom0 is allocated
         allocate(geom0(3,n))
         ! The matrix geom0 is filled with random coordinates of the particles, all of them within
-        ! (0, L) range
-        call random_number(geom0)
+        ! (0, L) range, checking that the particles are not too much closer, i.e., interatomic
+        ! distances are larger than 1 (in reduced units)
+        geom0 = 0.d0
+        call random_number(geom0(:,1))
         geom0 = L*geom0
+        do i = 2, n
+            r = 0.d0
+            do j = 1, i-1
+                do while (r .lt. 1.d0)
+                    call random_number(geom0(:,i))
+                    geom0(:,i) = L*geom0(:,i)
+                    r = sqrt((geom0(1,i)-geom0(1,j))**2+(geom0(2,i)-geom0(2,j))**2+ &
+                    (geom0(3,i)-geom0(3,j))**2)
+                enddo
+            enddo
+        enddo
 
         ! The initial geometry is written in intial_geom.xyz file (following the format of .xyz
         ! files), which can be read with 3D visualization programs.
@@ -119,8 +132,8 @@ module LJfluid
         ! Cartesian coordinate X
         if (geom(1,i)-geom(1,j).gt.L/2.d0) then
             r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2
-        !else if (geom(1,i)-geom(1,j).lt.(-L/2.d0)) then
-        !    r2(i-1,j) = (geom(1,i)-geom(1,j)+L)**2
+        else if (geom(1,i)-geom(1,j).lt.(-L/2.d0)) then
+            r2(i-1,j) = (geom(1,i)-geom(1,j)+L)**2
         else
             r2(i-1,j) = (geom(1,i)-geom(1,j))**2
         endif
@@ -128,8 +141,8 @@ module LJfluid
         ! Cartesian coordinate Y
         if (geom(2,i)-geom(2,j).gt.L/2.d0) then
             r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)-L)**2
-        !else if (geom(2,i)-geom(2,j).lt.(-L/2.d0)) then
-        !    r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)+L)**2
+        else if (geom(2,i)-geom(2,j).lt.(-L/2.d0)) then
+            r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)+L)**2
         else
             r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j))**2
         endif
@@ -137,8 +150,8 @@ module LJfluid
         ! Cartesian coordinate Z
         if (geom(3,i)-geom(3,j).gt.L/2.d0) then
             r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)-L)**2
-        !else if (geom(3,i)-geom(3,j).lt.(-L/2.d0)) then
-        !    r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)+L)**2
+        else if (geom(3,i)-geom(3,j).lt.(-L/2.d0)) then
+            r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)+L)**2
         else
             r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j))**2
         endif
@@ -223,22 +236,28 @@ module LJfluid
             ! modified coordinates
 
             ! Cartesian coordinate X
-            if (abs(geomi(1,atom)-geomi(1,i)).gt.L/2.d0) then
+            if ((geomi(1,atom)-geomi(1,i)).gt.L/2.d0) then
                 r2mod(i) = (geomi(1,atom)-geomi(1,i)-L)**2
+            else if ((geomi(1,atom)-geomi(1,i)).lt.(-L/2.d0)) then
+                r2mod(i) = (geomi(1,atom)-geomi(1,i)+L)**2
             else
                 r2mod(i) = (geomi(1,atom)-geomi(1,i))**2
             endif
 
             ! Cartesian coordinate Y
-            if (abs(geomi(2,atom)-geomi(2,i)).gt.L/2.d0) then
+            if ((geomi(2,atom)-geomi(2,i)).gt.L/2.d0) then
                 r2mod(i) = r2mod(i) + (geomi(2,atom)-geomi(2,i)-L)**2
+            else if ((geomi(2,atom)-geomi(2,i)).lt.(-L/2.d0)) then
+                r2mod(i) = r2mod(i) + (geomi(2,atom)-geomi(2,i)+L)**2
             else
                 r2mod(i) = r2mod(i) + (geomi(2,atom)-geomi(2,i))**2
             endif
 
             ! Cartesian coordinate Z
-            if (abs(geomi(3,atom)-geomi(3,i)).gt.L/2.d0) then
+            if ((geomi(3,atom)-geomi(3,i)).gt.L/2.d0) then
                 r2mod(i) = r2mod(i) + (geomi(3,atom)-geomi(3,i)-L)**2
+            else if ((geomi(3,atom)-geomi(3,i)).lt.(-L/2.d0)) then
+                r2mod(i) = r2mod(i) + (geomi(3,atom)-geomi(3,i)+L)**2
             else
                 r2mod(i) = r2mod(i) + (geomi(3,atom)-geomi(3,i))**2
             endif
@@ -253,22 +272,28 @@ module LJfluid
             ! modified coordinates
 
             ! Cartesian coordinate X
-            if (abs(geomi(1,i)-geomi(1,atom)).gt.L/2.d0) then
+            if ((geomi(1,i)-geomi(1,atom)).gt.L/2.d0) then
                r2mod(i-1) = (geomi(1,i)-geomi(1,atom)-L)**2
+            else if ((geomi(1,i)-geomi(1,atom)).lt.(-L/2.d0)) then
+               r2mod(i-1) = (geomi(1,i)-geomi(1,atom)+L)**2
             else
                r2mod(i-1) = (geomi(1,i)-geomi(1,atom))**2
             endif
             
             ! Cartesian coordinate Y
-            if (abs(geomi(2,i)-geomi(2,atom)).gt.L/2.d0) then
+            if ((geomi(2,i)-geomi(2,atom)).gt.L/2.d0) then
                r2mod(i-1) = r2mod(i-1) + (geomi(2,i)-geomi(2,atom)-L)**2
+            else if ((geomi(2,i)-geomi(2,atom)).lt.(-L/2.d0)) then
+               r2mod(i-1) = r2mod(i-1) + (geomi(2,i)-geomi(2,atom)+L)**2
             else
                r2mod(i-1) = r2mod(i-1) + (geomi(2,i)-geomi(2,atom))**2
             endif
 
             ! Cartesian coordinate Z
-            if (abs(geomi(3,i)-geomi(3,atom)).gt.L/2.d0) then
+            if ((geomi(3,i)-geomi(3,atom)).gt.L/2.d0) then
                r2mod(i-1) = r2mod(i-1) + (geomi(3,i)-geomi(3,atom)-L)**2
+            else if ((geomi(3,i)-geomi(3,atom)).lt.(-L/2.d0)) then
+               r2mod(i-1) = r2mod(i-1) + (geomi(3,i)-geomi(3,atom)+L)**2
             else
                r2mod(i-1) = r2mod(i-1) + (geomi(3,i)-geomi(3,atom))**2
             endif
@@ -321,13 +346,14 @@ module LJfluid
         ! dr = random displacement of one particle (tagged with atom) in the trial move
         ! dV = energy change for the corresponding trial move dr
         ! T = temperature
-        integer :: i, j, k, counter, atom, rmax, numMC
+        integer :: i, j, k, counter, atom, kmax, numMC
         integer, intent(in) :: n, maxcycle, therm
         real(kind=8), dimension(3,n) :: geom0, geomi
         real(kind=8), dimension(n-1,n-1) :: r2
         real(kind=8), dimension(n-1) :: r2mod
+        real(kind=8), dimension(3) :: dr
         real(kind=8), allocatable :: dat(:,:)
-        real(kind=8) :: aux, L, rc, V, Vrc, dr, dV, a, T, increment, rho, pi, t0, tf
+        real(kind=8) :: aux, L, rc, V, Vrc, dV, a, T, increment, rho, pi, t0, tf
 
         ! Execution zone
         call cpu_time(t0)
@@ -360,20 +386,20 @@ module LJfluid
         ! function. The maximun value of r is the half of simulation box length (L/2) divided
         ! by the increment, i.e., the number of intervals of size = increment (increment, 
         ! 2*increment, 3*increment,..., L/2)
-        increment = 0.05
-        rmax = int(L/(2*increment))+1
+        increment = 0.04
+        kmax = int(L/(2*increment))+1
 
         ! The matrix dat is allocated. The required data will be stored in this matrix, i.e., the
         ! first column will store k*increment = increment, 2*increment..., the second column
         ! the number of structures on each spherical shell, the third column the volume of each 
         ! spherical shell and the last one the value of g(r).
-        allocate(dat(4,rmax))
+        allocate(dat(4,kmax))
         ! The column which will store the volume is initialized with a number different from 
         ! zero to avoid zero in the denominators 
         dat(3,:) = 1.d0
         ! Compute the array of interatomic distances that we will take into account
         ! increment, 2*increment...
-        do k = 1, rmax
+        do k = 1, kmax
             dat(1,k) = k*increment
         enddo
 
@@ -386,7 +412,7 @@ module LJfluid
             ! Increment the counter of MC cycles in a unit
             counter = counter + 1
 
-            ! A random atom is chosen and displaced a random quantity between -0.5 and 0.5 units
+            ! A random atom is chosen and displaced a random quantity between -0.02 and 0.02 units
             call random_number(aux)
             atom = int(1+aux*n)
             call random_number(dr)
@@ -456,9 +482,9 @@ module LJfluid
                 numMC = numMC + 1
                 do i = 2, n
                     do j = 1, i-1
-                        call pbc(n, geom0, L, r2, i, j)
+                        !call pbc(n, geom0, L, r2, i, j)
                         k = int((sqrt(r2(i-1,j))/increment)+1)
-                        if (k .le. 60) then
+                        if (k .le. kmax) then
                             ! Compute the number of particles on each interval dN 
                             ! N(r+increment)-N(r)
                             dat(2,k) = dat(2,k) + 2
