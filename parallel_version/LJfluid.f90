@@ -1,14 +1,14 @@
 ! Module which carried out the Lennard-Jones simulation in a periodic box using Monte Carlo 
 ! algorithm. It contains several subroutines:
-! Parallel version of the module.
+! Serial version of the module.
 
 ! SUBROUTINE 1: initial_geom
 !               Sets the initial geometry for n Lennard-Jones particles in a cubic box, which 
 !               size (and also n) is chosen by the user in main.f90
 
 ! SUBROUTINE 2: pbc
-!               Apply periodic boundary conditions over a pair of atoms i and j received as   
-!               arguments, following the nearest image convention                             
+!               Apply periodic boundary conditions over a pair of atoms i and j received as
+!               arguments, following the nearest image convention
 
 ! SUBROUTINE 3: initial_V
 !               Computes the initial potential energy associated with the initial geometry
@@ -31,7 +31,6 @@
 
 module LJfluid
 
-    ! Include openMP library
     use omp_lib
     implicit none
     public :: initial_geom, pbc, initial_V, delta_V, montecarlo
@@ -50,22 +49,23 @@ module LJfluid
     ! r2 = triangular matrix which store the value of the square of the distance between each
     ! pair of particles rij^2
     ! atom = particle over which a trial move is performed on each Monte Carlo cycle
-    ! r2mod = 
+    ! r2mod = array of length n-1 which stores the modified value of the square of the interatomic
+    ! distance between a atoms over which a trial move is performed and the rest i.e. pair atom,i
 
 
     ! *********************************************************************************************
     !                          SUBROUTINE 1: Set the initial geometry
     ! *********************************************************************************************
     
-    subroutine initial_geom(n,L,geom0)
+    subroutine initial_geom(n, L, geom0,nthr)
     
         ! Declaration statements
         implicit none
-        integer :: i
-        integer, intent(in) :: n  
+        integer :: i, j, nthr
+        integer, intent(in) :: n
         real(kind=8), intent(in) :: L  
         real(kind=8), allocatable, intent(inout) :: geom0(:,:)
-
+        real(kind=8) :: r
 
         ! Execution zone
         ! The initial coordinates of the particles are stored in matrix geom0, which has the
@@ -78,9 +78,34 @@ module LJfluid
         ! The matrix geom0 is allocated
         allocate(geom0(3,n))
         ! The matrix geom0 is filled with random coordinates of the particles, all of them within
-        ! (0, L) range
-        call random_number(geom0)
+        ! (0, L) range, checking that the particles are not too much closer, i.e., interatomic
+        ! distances are larger than 1 (in reduced units)
+        geom0 = 0.d0
+        call random_number(geom0(:,1))
         geom0 = L*geom0
+
+        call omp_set_num_threads(nthr)
+        !$omp parallel shared(geom0,r) private(i,j)
+        nthr = omp_get_num_threads()
+        !!$omp master
+        !    write (*,*) "Using this number of threads:",nthr
+        !!$omp end master
+        !$omp do
+        do i = 2, n
+            r = 0.d0
+            do j = 1, i-1
+                ! Recalculate the cartesian coordinates of each atom until it is not too close
+                ! to the other atoms, rmin = 1 
+                do while (r .lt. 1.d0)
+                    call random_number(geom0(:,i))
+                    geom0(:,i) = L*geom0(:,i)
+                    r = sqrt((geom0(1,i)-geom0(1,j))**2+(geom0(2,i)-geom0(2,j))**2+ &
+                    (geom0(3,i)-geom0(3,j))**2)
+                enddo
+            enddo
+        enddo
+        !$omp end do
+        !$omp end parallel 
 
         ! The initial geometry is written in intial_geom.xyz file (following the format of .xyz
         ! files), which can be read with 3D visualization programs.
@@ -118,22 +143,28 @@ module LJfluid
         ! distance is lower than L/2.
 
         ! Cartesian coordinate X
-        if (abs(geom(1,i)-geom(1,j)).gt.L/2.d0) then
+        if (geom(1,i)-geom(1,j).gt.L/2.d0) then
             r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2
+        else if (geom(1,i)-geom(1,j).lt.(-L/2.d0)) then
+            r2(i-1,j) = (geom(1,i)-geom(1,j)+L)**2
         else
             r2(i-1,j) = (geom(1,i)-geom(1,j))**2
         endif
 
         ! Cartesian coordinate Y
-        if (abs(geom(2,i)-geom(2,j)).gt.L/2.d0) then
+        if (geom(2,i)-geom(2,j).gt.L/2.d0) then
             r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)-L)**2
+        else if (geom(2,i)-geom(2,j).lt.(-L/2.d0)) then
+            r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)+L)**2
         else
             r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j))**2
         endif
 
         ! Cartesian coordinate Z
-        if (abs(geom(3,i)-geom(3,j)).gt.L/2.d0) then
+        if (geom(3,i)-geom(3,j).gt.L/2.d0) then
             r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)-L)**2
+        else if (geom(3,i)-geom(3,j).lt.(-L/2.d0)) then
+            r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)+L)**2
         else
             r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j))**2
         endif
@@ -141,7 +172,6 @@ module LJfluid
         return
 
     end subroutine pbc
-
 
 
 
@@ -167,8 +197,12 @@ module LJfluid
         ! Compute the value of V at rc
         Vrc = 4*(1.d0/rc**12-1.d0/rc**6)
 
+        !$omp parallel shared(r2) private(i,j), reduction(+:V)
+        !$omp do
         do i = 2, n
             do j = 1, i-1
+                ! Call subroutine pbc to compute the square of interatomic distance between the
+                ! pair of atoms i and j
                 call pbc(n, geom0, L, r2, i, j)
 
                 ! Calculation of the potential using the cutoff rc
@@ -176,7 +210,9 @@ module LJfluid
                     V = V + (1.d0/r2(i-1,j)**6-1.d0/r2(i-1,j)**3) - Vrc
                 endif
             enddo
-        enddo
+         enddo
+         !$omp end do
+         !$omp end parallel
 
         V = 4.d0*V
 
@@ -192,11 +228,11 @@ module LJfluid
     !    SUBROUTINE 4: Compute the change in the potential energy for a trial move of one atom
     ! *********************************************************************************************
 
-    subroutine delta_V(n, geomi, L, r2, atom, r2mod, dV, nthr)
+    subroutine delta_V(n, geomi, L, r2, atom, r2mod, dV)
 
         ! Declaration statements
         integer :: i
-        integer, intent(in) :: n, atom, nthr
+        integer, intent(in) :: n, atom
         real(kind=8), intent(in) :: L
         real(kind=8), dimension(3,n), intent(in) :: geomi
         real(kind=8), intent(inout) :: dV
@@ -206,35 +242,44 @@ module LJfluid
         ! Execution zone
         dV = 0.d0
         r2mod = 0.d0
-        call omp_set_num_threads(nthr)
 
         ! The evaluation of dV is computed using two do loops, one for the modified terms 
         ! r2(atom-1,i), i.e. r(atom-1,1), r(atom-1,2)... until i = atom-1, and the other for the
         ! terms r2(i, atom) for i > atom, i.e. r2(atom+1,atom), r2(atom+2,atom)... until i = n.
         ! This can be done also with a do loop from 1 to n and an if-else inside the loop but it 
         ! is more computationally expensive.
-        !$omp parallel do shared(r2mod, r2) private(i), reduction(+:dV)
+        !$omp parallel shared(r2mod) private(i), reduction(+:dV)
+        !!$omp master
+        !write(*,*) "deltaV", omp_get_num_threads()
+        !!$omp end master
+        !$omp do 
         do i = 1, atom-1
             ! Periodic boundary conditions using the nearest image convention apply over the 
             ! modified coordinates
 
             ! Cartesian coordinate X
-            if (abs(geomi(1,atom)-geomi(1,i)).gt.L/2.d0) then
+            if ((geomi(1,atom)-geomi(1,i)).gt.L/2.d0) then
                 r2mod(i) = (geomi(1,atom)-geomi(1,i)-L)**2
+            else if ((geomi(1,atom)-geomi(1,i)).lt.(-L/2.d0)) then
+                r2mod(i) = (geomi(1,atom)-geomi(1,i)+L)**2
             else
                 r2mod(i) = (geomi(1,atom)-geomi(1,i))**2
             endif
 
             ! Cartesian coordinate Y
-            if (abs(geomi(2,atom)-geomi(2,i)).gt.L/2.d0) then
+            if ((geomi(2,atom)-geomi(2,i)).gt.L/2.d0) then
                 r2mod(i) = r2mod(i) + (geomi(2,atom)-geomi(2,i)-L)**2
+            else if ((geomi(2,atom)-geomi(2,i)).lt.(-L/2.d0)) then
+                r2mod(i) = r2mod(i) + (geomi(2,atom)-geomi(2,i)+L)**2
             else
                 r2mod(i) = r2mod(i) + (geomi(2,atom)-geomi(2,i))**2
             endif
 
             ! Cartesian coordinate Z
-            if (abs(geomi(3,atom)-geomi(3,i)).gt.L/2.d0) then
+            if ((geomi(3,atom)-geomi(3,i)).gt.L/2.d0) then
                 r2mod(i) = r2mod(i) + (geomi(3,atom)-geomi(3,i)-L)**2
+            else if ((geomi(3,atom)-geomi(3,i)).lt.(-L/2.d0)) then
+                r2mod(i) = r2mod(i) + (geomi(3,atom)-geomi(3,i)+L)**2
             else
                 r2mod(i) = r2mod(i) + (geomi(3,atom)-geomi(3,i))**2
             endif
@@ -243,30 +288,42 @@ module LJfluid
             dV = dV + 1.d0/r2mod(i)**6 - 1.d0/r2mod(i)**3 &
             - 1.d0/r2(atom-1,i)**6 + 1.d0/r2(atom-1,i)**3
         enddo
-        !$omp end parallel do
+        !$omp end do
+        !$omp end parallel
 
-        !$omp parallel do shared(r2mod, r2) private(i), reduction(+:dV)
+        !$omp parallel shared(r2mod) private(i), reduction(+:dV)
+        !nthr = omp_get_num_threads() 
+        !!$omp master
+        !write(*,*) "deltaV", nthr
+        !!$omp end master
+        !$omp do 
         do i = atom+1, n
             ! Periodic boundary conditions using the nearest image convention apply over the 
             ! modified coordinates
 
             ! Cartesian coordinate X
-            if (abs(geomi(1,i)-geomi(1,atom)).gt.L/2.d0) then
+            if ((geomi(1,i)-geomi(1,atom)).gt.L/2.d0) then
                r2mod(i-1) = (geomi(1,i)-geomi(1,atom)-L)**2
+            else if ((geomi(1,i)-geomi(1,atom)).lt.(-L/2.d0)) then
+               r2mod(i-1) = (geomi(1,i)-geomi(1,atom)+L)**2
             else
                r2mod(i-1) = (geomi(1,i)-geomi(1,atom))**2
             endif
             
             ! Cartesian coordinate Y
-            if (abs(geomi(2,i)-geomi(2,atom)).gt.L/2.d0) then
+            if ((geomi(2,i)-geomi(2,atom)).gt.L/2.d0) then
                r2mod(i-1) = r2mod(i-1) + (geomi(2,i)-geomi(2,atom)-L)**2
+            else if ((geomi(2,i)-geomi(2,atom)).lt.(-L/2.d0)) then
+               r2mod(i-1) = r2mod(i-1) + (geomi(2,i)-geomi(2,atom)+L)**2
             else
                r2mod(i-1) = r2mod(i-1) + (geomi(2,i)-geomi(2,atom))**2
             endif
-            
-            ! Cartesian coordinate Y
-            if (abs(geomi(3,i)-geomi(3,atom)).gt.L/2.d0) then
+
+            ! Cartesian coordinate Z
+            if ((geomi(3,i)-geomi(3,atom)).gt.L/2.d0) then
                r2mod(i-1) = r2mod(i-1) + (geomi(3,i)-geomi(3,atom)-L)**2
+            else if ((geomi(3,i)-geomi(3,atom)).lt.(-L/2.d0)) then
+               r2mod(i-1) = r2mod(i-1) + (geomi(3,i)-geomi(3,atom)+L)**2
             else
                r2mod(i-1) = r2mod(i-1) + (geomi(3,i)-geomi(3,atom))**2
             endif
@@ -274,7 +331,27 @@ module LJfluid
             dV = dV + (1.d0/r2mod(i-1)**6-1.d0/r2mod(i-1)**3- & 
             1.d0/r2(i-1,atom)**6+1.d0/r2(i-1,atom)**3)
         enddo
-        !$omp end parallel do
+        !$omp end do
+        !$omp end parallel
+            
+        !do i = 1, atom-1
+            ! Call subroutine pbc to compute the square of interatomic distance between the
+            ! pair of atoms i and j
+        !    call pbc(n, geomi, L, r2mod, atom, i)
+
+            ! The value of dV is computed for the implied distances
+        !    dV = dV + 1.d0/r2mod(i)**6 - 1.d0/r2mod(i)**3 &
+        !    - 1.d0/r2(atom-1,i)**6 + 1.d0/r2(atom-1,i)**3
+        !enddo
+
+        !do i = atom+1, n
+            ! Call subroutine pbc to compute the square of interatomic distance between the
+            ! pair of atoms i and j
+        !    call pbc(n, geomi, L, r2mod, i, atom)
+
+        !    dV = dV + (1.d0/r2mod(i-1)**6-1.d0/r2mod(i-1)**3- & 
+        !    1.d0/r2(i-1,atom)**6+1.d0/r2(i-1,atom)**3)
+        !enddo
 
         dV = 4.d0*dV
 
@@ -301,23 +378,18 @@ module LJfluid
         ! dr = random displacement of one particle (tagged with atom) in the trial move
         ! dV = energy change for the corresponding trial move dr
         ! T = temperature
-        integer :: i, j, k, counter, atom, rmax, numMC, nthr, thrn
-        integer, intent(in) :: n, maxcycle, therm
+        integer :: i, j, k, counter, atom, kmax, numMC
+        integer, intent(in) :: n, maxcycle, therm, nthr
         real(kind=8), dimension(3,n) :: geom0, geomi
         real(kind=8), dimension(n-1,n-1) :: r2
         real(kind=8), dimension(n-1) :: r2mod
+        real(kind=8), dimension(3) :: dr
         real(kind=8), allocatable :: dat(:,:)
-        real(kind=8) :: aux, L, rc, V, Vrc, dr, dV, a, T, increment, rho, pi, t0, tf, t0cpu, tfcpu
-
+        real(kind=8) :: aux, L, rc, V, Vrc, dV, a, T, increment, rho, pi, t0, tf
 
         ! Execution zone
-        ! Number of threads and thread number 
+        !call cpu_time(t0)
         t0 = omp_get_wtime()
-        call cpu_time(t0cpu)
-        thrn = omp_get_thread_num()
-
-        call omp_set_num_threads(nthr)
-        !write(*,"( 'Number of procesors is ',I5)") omp_get_num_threads()
 
         ! The potential energy for the initial geometry is calculated
         call initial_V(n, geom0, L, r2, rc, V, Vrc)
@@ -347,32 +419,40 @@ module LJfluid
         ! function. The maximun value of r is the half of simulation box length (L/2) divided
         ! by the increment, i.e., the number of intervals of size = increment (increment, 
         ! 2*increment, 3*increment,..., L/2)
-        increment = 0.05
-        rmax = int(L/(2*increment))+1
+        increment = 0.04
+        kmax = int(L/(2*increment))+1
 
         ! The matrix dat is allocated. The required data will be stored in this matrix, i.e., the
         ! first column will store k*increment = increment, 2*increment..., the second column
         ! the number of structures on each spherical shell, the third column the volume of each 
         ! spherical shell and the last one the value of g(r).
-        allocate(dat(4,rmax))
+        allocate(dat(4,kmax))
         ! The column which will store the volume is initialized with a number different from 
         ! zero to avoid zero in the denominators 
         dat(3,:) = 1.d0
+        ! Compute the array of interatomic distances that we will take into account
+        ! increment, 2*increment...
+        do k = 1, kmax
+            dat(1,k) = k*increment
+        enddo
 
         ! Initialization of the counter of MC cycles
         counter = 0
 
         ! Initialization of the number of snapshots that will be use to compute g(r)
         numMC = 0
+
+        call omp_set_num_threads(nthr)
+
         do while (counter .lt. maxcycle) 
             ! Increment the counter of MC cycles in a unit
             counter = counter + 1
 
-            ! A random atom is chosen and displaced a random quantity between -0.5 and 0.5 units
+            ! A random atom is chosen and displaced a random quantity between -0.02 and 0.02 units
             call random_number(aux)
             atom = int(1+aux*n)
             call random_number(dr)
-            dr = (dr-0.5)*0.1
+            dr = (dr-0.5)*0.04
             ! The geometry in cycle i is geomi, i.e., the initial geometry with the random 
             ! displacement of atom i, dr
             geomi = geom0
@@ -389,7 +469,7 @@ module LJfluid
 
             ! The energy change associated with the trial move is computed using the subroutine
             ! delta_V
-            call delta_V(n, geomi, L, r2, atom, r2mod, dV, nthr)
+            call delta_V(n, geomi, L, r2, atom, r2mod, dV)
             
             ! The program checks if the trial move is accepted or not
             if (dV .lt. 0.d0) then
@@ -399,17 +479,12 @@ module LJfluid
                 ! are update
                 geom0 = geomi
                 V = V + dV
-                !$omp parallel do shared(r2, r2mod) private(i)
                 do i = 1, atom-1
                     r2(atom-1,i) = r2mod(i)
-                    !write(*,"( 'Number of procesors is ',I5)") omp_get_num_threads()
                 enddo
-                !$omp end parallel do
-                !$omp parallel do shared(r2, r2mod) private(i)
                 do i = atom+1, n
                     r2(i-1,atom) = r2mod(i-1)
                 enddo
-                !$omp end parallel do
             else
                 ! Is the energy change associated with the trial move is positive, the procedure
                 ! to decide is the trial move is accepted or not consists in computes the 
@@ -422,16 +497,12 @@ module LJfluid
                     ! Trial move accepted
                     geom0 = geomi
                     V = V + dV
-                    !$omp parallel do shared(r2, r2mod) private(i)
                     do i = 1, atom-1
                         r2(atom-1,i) = r2mod(i)
                     enddo
-                    !$omp end parallel do
-                    !$omp parallel do shared(r2, r2mod) private(i)
                     do i = atom+1, n
                         r2(i-1,atom) = r2mod(i-1)
                     enddo
-                    !$omp end parallel do
                 endif
                     ! Trial move rejected
             endif
@@ -441,27 +512,28 @@ module LJfluid
                 write(25,*) counter, V 
             endif
 
-
             ! Pair correlation function g(r)
             ! The first MC steps are not considered (thermalization) set by the user in the main
             if (counter > therm .and. mod(counter,10*n) .eq. 0) then
                 numMC = numMC + 1
-                !$omp parallel do shared(dat) private(i,j,k)
+                !$omp parallel shared(dat), private(i,j,k)
+                !$omp do 
                 do i = 2, n
                     do j = 1, i-1
-                        call pbc(n, geom0, L, r2, i, j)
-                        k = int(sqrt(r2(i-1,j))/increment)
-                        if (k .le. 60) then
+                        !call pbc(n, geom0, L, r2, i, j)
+                        k = int((sqrt(r2(i-1,j))/increment)+1)
+                        if (k .le. kmax) then
                             ! Compute the number of particles on each interval dN 
                             ! N(r+increment)-N(r)
-                            dat(2,k) = dat(2,k) + 1
+                            dat(2,k) = dat(2,k) + 2
                             ! Compute the volume of spherical shell dV 
                             ! V(r+increment)-V(r)
                             dat(3,k) = 4.d0*pi*r2(i-1,j)*increment
                         endif
                     enddo
                 enddo
-                !$omp end parallel do
+                !$omp end do
+                !$omp end parallel
             endif
 
         enddo ! Monte Carlo end
@@ -469,7 +541,7 @@ module LJfluid
         ! Calculate the mean number of structures between each (k-1)*increment, k*increment
         dat(2,:) = dat(2,:)/numMC
         ! Calculation of the pair correlation function g(r) 
-        dat(4,:) = dat(2,:)/(dat(3,:)*rho)
+        dat(4,:) = dat(2,:)/(dat(3,:)*rho*n)
         ! Write the pair correlation function and associated quantities in output file g.out
         write(26, '(4f17.10)') dat
         deallocate(dat)
@@ -482,9 +554,8 @@ module LJfluid
             write(27,'( "H", f10.6, f10.6, f10.6)' ) geom0(1,i), geom0(2,i), geom0(3,i)
         enddo
         tf = omp_get_wtime()
-        call cpu_time(tfcpu)
-        print '("Time OMP = ", f10.5," seconds. ")', tf-t0
-        print '("Time CPU = ", f10.5," seconds. ")', tfcpu-t0cpu
+        !call cpu_time(tf)
+        print '("Time = ",f10.5," seconds.")', tf-t0 
 
         return
 

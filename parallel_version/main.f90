@@ -7,6 +7,7 @@
 program main
 
     ! To make use of the module LJfluid use statement is employed. 
+    use omp_lib
     use LJfluid
 
     ! Declaration statements
@@ -20,7 +21,7 @@ program main
     ! V = potential energy of the system
     ! Vrc = potential energy of the system at r = rc
     ! T = temperature
-    integer :: n, cycles, therm, nthr
+    integer :: n, cycles, therm, procs
     real(kind=8), allocatable :: coord(:,:)
     real(kind=8) :: L, rc, V, Vrc, T
 
@@ -34,14 +35,14 @@ program main
     rc = 3.d0
     T = 1.268
     cycles = 10**7
-    therm = 5*10**5
-    nthr = 6
+    therm = 10**6
+    procs = 6
 
     ! Call initial_geom subroutine of LJfluid to set the initial coord(:,:) matrix
-    call initial_geom(n, L, coord)
+    call initial_geom(n, L, coord, procs)
 
     ! Call montecarlo subroutine of LJfluid to perform the simulation of the fluid
-    call montecarlo(n, coord, L, rc, V, Vrc, T, cycles, therm, nthr)
+    call montecarlo(n, coord, L, rc, V, Vrc, T, cycles, therm, procs)
 
     
 end program main

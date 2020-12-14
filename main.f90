@@ -33,7 +33,7 @@ program main
     rc = 3.d0
     T = 1.268
     cycles = 10**7
-    therm = 5*10**5
+    therm = 10**6
 
     ! Call initial_geom subroutine of LJfluid to set the initial coord(:,:) matrix
     call initial_geom(n, L, coord)

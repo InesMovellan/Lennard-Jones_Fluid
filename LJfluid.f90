@@ -4,8 +4,7 @@
 
 ! SUBROUTINE 1: initial_geom
 !               Sets the initial geometry for n Lennard-Jones particles in a cubic box, which 
-!               size (and also n) is chosen by the user in main.f90
-
+!               size (and also n) is chosen by the user in main.f90 
 ! SUBROUTINE 2: pbc
 !               Apply periodic boundary conditions over a pair of atoms i and j received as
 !               arguments, following the nearest image convention
@@ -13,8 +12,7 @@
 ! SUBROUTINE 3: initial_V
 !               Computes the initial potential energy associated with the initial geometry
 !               configuration of the particles obtained with initial_geom subroutine. Since the
-!               model of the system is a cubic box surrounded by an infinite number of replicas,
-!               the calculation of the energy is done with periodic boundary conditions (PBC).
+!               model of the system is a cubic box surrounded by an infinite number of replicas, the calculation of the energy is done with periodic boundary conditions (PBC).
 
 ! SUBROUTINE 4: delta_V
 !               Calculates the energy change between one trial move performed in montecarlo
@@ -346,7 +344,7 @@ module LJfluid
         ! dr = random displacement of one particle (tagged with atom) in the trial move
         ! dV = energy change for the corresponding trial move dr
         ! T = temperature
-        integer :: i, j, k, counter, atom, kmax, numMC
+        integer :: i, j, k, counter, atom, kmax, samplMC
         integer, intent(in) :: n, maxcycle, therm
         real(kind=8), dimension(3,n) :: geom0, geomi
         real(kind=8), dimension(n-1,n-1) :: r2
@@ -365,7 +363,6 @@ module LJfluid
         pi = 4*atan(1.0)
         ! The mean density is computed
         rho = n/(L**3)
-        !rho = n/((4.d0/3.d0)*pi*(L/2.d0)**3)
 
         open(25, file="V.out", action="write")
         write(25,*) "Potential energy of the fluid of Lennard Jones particles"
@@ -407,7 +404,8 @@ module LJfluid
         counter = 0
 
         ! Initialization of the number of snapshots that will be use to compute g(r)
-        numMC = 0
+        samplMC = 0
+
         do while (counter .lt. maxcycle) 
             ! Increment the counter of MC cycles in a unit
             counter = counter + 1
@@ -471,23 +469,22 @@ module LJfluid
                     ! Trial move rejected
             endif
 
-            ! Write the potential energy in output file V.out
-            if (mod(counter,100*n) .eq. 0) then
-                write(25,*) counter, V 
-            endif
+            ! Uncomment to write the potential energy in output file V.out
+            !if (mod(counter,100*n) .eq. 0) then
+            !    write(25,*) counter, V 
+            !endif
 
             ! Pair correlation function g(r)
             ! The first MC steps are not considered (thermalization) set by the user in the main
             if (counter > therm .and. mod(counter,10*n) .eq. 0) then
-                numMC = numMC + 1
+                samplMC = samplMC + 1
                 do i = 2, n
                     do j = 1, i-1
-                        !call pbc(n, geom0, L, r2, i, j)
                         k = int((sqrt(r2(i-1,j))/increment)+1)
                         if (k .le. kmax) then
                             ! Compute the number of particles on each interval dN 
                             ! N(r+increment)-N(r)
-                            dat(2,k) = dat(2,k) + 2
+                            dat(2,k) = dat(2,k) + 1
                             ! Compute the volume of spherical shell dV 
                             ! V(r+increment)-V(r)
                             dat(3,k) = 4.d0*pi*r2(i-1,j)*increment
@@ -499,9 +496,9 @@ module LJfluid
         enddo ! Monte Carlo end
 
         ! Calculate the mean number of structures between each (k-1)*increment, k*increment
-        dat(2,:) = dat(2,:)/numMC
+        dat(2,:) = dat(2,:)/samplMC
         ! Calculation of the pair correlation function g(r) 
-        dat(4,:) = dat(2,:)/(dat(3,:)*rho*n)
+        dat(4,:) = dat(2,:)/(dat(3,:)*rho*n/2.d0)
         ! Write the pair correlation function and associated quantities in output file g.out
         write(26, '(4f17.10)') dat
         deallocate(dat)
