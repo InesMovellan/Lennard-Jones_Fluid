@@ -1,2 +1,29 @@
-Time = 69.726 (con dat(:,:))
-Time =   69.05699 seconds. (con arrays)
+MC steps = 10**7
+Thermalization = 10**6
+L = 6
+N = 100
+Time serial =   71.62276 seconds.
+Time parallel (2 procs) =   74.66820 seconds
+Time parallel (4 procs) =   100.38345 seconds
+
+MC steps = 10**7
+Thermalization = 10**6
+L = 6
+N = 150
+Time serial =  109.56399 seconds
+Time parallel (2 procs) = 143.29124 seconds
+
+MC steps = 10**7
+Thermalization = 10**6
+L = 6
+N = 200
+Time serial =  144.02264 seconds
+Time parallel (2 procs) = 117.36941 seconds
+
+MC steps = 10**7
+Thermalization = 10**6
+L = 6
+N = 250
+Time serial =  180.53473 seconds
+Time parallel (2 procs) = 133.25850 seconds
+Time parallel (4 procs) = 115.13096 seconds

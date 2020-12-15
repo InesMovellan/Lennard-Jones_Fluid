@@ -91,3 +91,6 @@ I have normalize the number of particles dN present on each r+dr interval, which
 the number of snapshots (numMC) that I explore. I have also introduce the thermalization for the
 calculation of g(r), but I missing something because the maximun value of g(r) is arround 80 and
 it should be 3-6
+
+14/12/2020
+Comple version of serial MC

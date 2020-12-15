@@ -19,14 +19,14 @@ program main
     ! rc = cutoff radius from which the interaction between two atoms is neglected
     ! V = potential energy of the system
     ! Vrc = potential energy of the system at r = rc
-    ! T = temperature
+    ! T = temperature 
     integer :: n, cycles, therm
     real(kind=8), allocatable :: coord(:,:)
     real(kind=8) :: L, rc, V, Vrc, T
 
 
     ! Execution zone
-    ! The user set the values of n, L rc, T and cycles. Magnitudes (L, rc and T) are in reduce
+    ! The user set the values of n, L rc, T and cycles. Magnitudes (L, rc and T) are in reduced
     ! units
     n = 100
     L = 6.d0
@@ -39,7 +39,7 @@ program main
     call initial_geom(n, L, coord)
 
     ! Call montecarlo subroutine of LJfluid to perform the simulation of the fluid
-    call montecarlo(n, coord, L, rc, V, Vrc, T, cycles,therm)
+    call montecarlo(n, coord, L, rc, V, Vrc, T, cycles, therm)
 
     
 end program main

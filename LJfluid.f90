@@ -5,6 +5,7 @@
 ! SUBROUTINE 1: initial_geom
 !               Sets the initial geometry for n Lennard-Jones particles in a cubic box, which 
 !               size (and also n) is chosen by the user in main.f90 
+
 ! SUBROUTINE 2: pbc
 !               Apply periodic boundary conditions over a pair of atoms i and j received as
 !               arguments, following the nearest image convention
@@ -12,7 +13,8 @@
 ! SUBROUTINE 3: initial_V
 !               Computes the initial potential energy associated with the initial geometry
 !               configuration of the particles obtained with initial_geom subroutine. Since the
-!               model of the system is a cubic box surrounded by an infinite number of replicas, the calculation of the energy is done with periodic boundary conditions (PBC).
+!               model of the system is a cubic box surrounded by an infinite number of replicas, 
+!               the calculation of the energy is done with periodic boundary conditions (PBC).
 
 ! SUBROUTINE 4: delta_V
 !               Calculates the energy change between one trial move performed in montecarlo
@@ -37,17 +39,22 @@ module LJfluid
 
     ! integers i, j and k in subroutines are counters for the do loops
     ! n = number of particles in the simulation box
+    ! L = box side length
+    ! dx, dy, dz = difference between x, y and z coordinates of two particles when periodic 
+    !              boundary conditions are applied
     ! V = potential energy of the system
+    ! dV = energy change when a trial move is performed
     ! rc = cutoff radius from which the interaction between two atoms is neglected
     ! Vrc = potential energy of the system at r = rc
     ! geom0 = 3 columns, n rows matrix which contains the initial set of (X, Y, Z) coordinates 
     ! geomi = 3 columns, n rows matrix which store the cartesian coordinates (X, Y, Z) of each
-    ! particle in each row, it changes for each trial move.
+    !         particle in each row, it changes for each trial move.
     ! r2 = triangular matrix which store the value of the square of the distance between each
-    ! pair of particles rij^2
+    !      pair of particles rij^2
     ! atom = particle over which a trial move is performed on each Monte Carlo cycle
     ! r2mod = array of length n-1 which stores the modified value of the square of the interatomic
-    ! distance between a atoms over which a trial move is performed and the rest i.e. pair atom,i
+    !         distance between a atoms over which a trial move is performed and the rest i.e. 
+    !         pair atom,i
 
 
     ! *********************************************************************************************
@@ -57,12 +64,13 @@ module LJfluid
     subroutine initial_geom(n,L,geom0)
     
         ! Declaration statements
+        ! r = interatomic distance
         implicit none
-        integer :: i, j
+        integer :: i, j, cont
         integer, intent(in) :: n  
         real(kind=8), intent(in) :: L  
         real(kind=8), allocatable, intent(inout) :: geom0(:,:)
-        real(kind=8) :: r
+        real(kind=8) :: r, dx, dy, dz
 
         ! Execution zone
         ! The initial coordinates of the particles are stored in matrix geom0, which has the
@@ -76,18 +84,20 @@ module LJfluid
         allocate(geom0(3,n))
         ! The matrix geom0 is filled with random coordinates of the particles, all of them within
         ! (0, L) range, checking that the particles are not too much closer, i.e., interatomic
-        ! distances are larger than 1 (in reduced units)
+        ! distances are larger than 1 (in reduced units). The geometry is set taking into 
+        ! account periodic boundary conditions
         geom0 = 0.d0
         call random_number(geom0(:,1))
         geom0 = L*geom0
         do i = 2, n
             r = 0.d0
             do j = 1, i-1
+                cont = 0
                 do while (r .lt. 1.d0)
                     call random_number(geom0(:,i))
                     geom0(:,i) = L*geom0(:,i)
-                    r = sqrt((geom0(1,i)-geom0(1,j))**2+(geom0(2,i)-geom0(2,j))**2+ &
-                    (geom0(3,i)-geom0(3,j))**2)
+                    call pbc(n, geom0, L, i, j, dx, dy, dz)
+                    r = sqrt(dx**2 + dy**2 + dz**2)
                 enddo
             enddo
         enddo
@@ -100,6 +110,7 @@ module LJfluid
         do i = 1, n
             write(23,'( "H", f10.6, f10.6, f10.6)' ) geom0(1,i), geom0(2,i), geom0(3,i) 
         enddo
+        write(*,*) "Initial geometry defined"
         return
 
     end subroutine initial_geom
@@ -112,14 +123,15 @@ module LJfluid
     !           SUBROUTINE 2: Apply periodic boundary conditions over determinated geometry
     ! *********************************************************************************************
 
-    subroutine pbc(n, geom, L, r2, i, j)
+    subroutine pbc(n, geom, L, i, j, dx, dy, dz)
 
         ! Declaration statements
+        ! geom = matrix which stores the cartesian coordinates of each particle
         implicit none
         integer, intent(in) :: n, i, j
         real(kind=8), dimension(3,n), intent(in) :: geom
         real(kind=8), intent(in) :: L
-        real(kind=8), dimension(n-1,n-1), intent(inout) :: r2
+        real(kind=8), intent(inout) :: dx, dy, dz
 
 
         ! Execution zone
@@ -129,35 +141,36 @@ module LJfluid
 
         ! Cartesian coordinate X
         if (geom(1,i)-geom(1,j).gt.L/2.d0) then
-            r2(i-1,j) = (geom(1,i)-geom(1,j)-L)**2
+            dx = geom(1,i)-geom(1,j)-L
         else if (geom(1,i)-geom(1,j).lt.(-L/2.d0)) then
-            r2(i-1,j) = (geom(1,i)-geom(1,j)+L)**2
+            dx = geom(1,i)-geom(1,j)+L
         else
-            r2(i-1,j) = (geom(1,i)-geom(1,j))**2
+            dx = geom(1,i)-geom(1,j)
         endif
 
         ! Cartesian coordinate Y
         if (geom(2,i)-geom(2,j).gt.L/2.d0) then
-            r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)-L)**2
+            dy = geom(2,i)-geom(2,j)-L
         else if (geom(2,i)-geom(2,j).lt.(-L/2.d0)) then
-            r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j)+L)**2
+            dy = geom(2,i)-geom(2,j)+L
         else
-            r2(i-1,j) = r2(i-1,j) + (geom(2,i)-geom(2,j))**2
+            dy = geom(2,i)-geom(2,j)
         endif
 
         ! Cartesian coordinate Z
         if (geom(3,i)-geom(3,j).gt.L/2.d0) then
-            r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)-L)**2
+            dz = geom(3,i)-geom(3,j)-L
         else if (geom(3,i)-geom(3,j).lt.(-L/2.d0)) then
-            r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j)+L)**2
+            dz = geom(3,i)-geom(3,j)+L
         else
-            r2(i-1,j) = r2(i-1,j) + (geom(3,i)-geom(3,j))**2
+            dz = geom(3,i)-geom(3,j)
         endif
 
         return
 
     end subroutine pbc
 
+    ! *********************************************************************************************
 
 
     ! *********************************************************************************************
@@ -174,6 +187,7 @@ module LJfluid
         real(kind=8), intent(in) :: L, rc
         real(kind=8), dimension(n-1,n-1), intent(out) :: r2
         real(kind=8), intent(out) :: V, Vrc
+        real(kind=8) :: dx, dy, dz
 
 
         ! Execution zone
@@ -184,9 +198,11 @@ module LJfluid
 
         do i = 2, n
             do j = 1, i-1
-                ! Call subroutine pbc to compute the square of interatomic distance between the
-                ! pair of atoms i and j
-                call pbc(n, geom0, L, r2, i, j)
+                ! Call subroutine pbc to apply periodic boundary conditions
+                call pbc(n, geom0, L, i, j, dx, dy, dz)
+
+                ! Calculate the square of interatomic distance between the pair i and j
+                r2(i-1,j) = dx**2 + dy**2 + dz**2
 
                 ! Calculation of the potential using the cutoff rc
                 if (r2(i-1,j)<rc**2) then
@@ -196,6 +212,7 @@ module LJfluid
          enddo
 
         V = 4.d0*V
+        write(*,*) "Initial potential energy calculated"
 
         return
 
@@ -219,6 +236,7 @@ module LJfluid
         real(kind=8), intent(inout) :: dV
         real(kind=8), dimension(n-1,n-1), intent(out) :: r2
         real(kind=8), dimension(n-1), intent(inout) :: r2mod
+        real(kind=8) :: dx, dy, dz
 
         ! Execution zone
         dV = 0.d0
@@ -230,94 +248,20 @@ module LJfluid
         ! This can be done also with a do loop from 1 to n and an if-else inside the loop but it 
         ! is more computationally expensive.
         do i = 1, atom-1
-            ! Periodic boundary conditions using the nearest image convention apply over the 
-            ! modified coordinates
-
-            ! Cartesian coordinate X
-            if ((geomi(1,atom)-geomi(1,i)).gt.L/2.d0) then
-                r2mod(i) = (geomi(1,atom)-geomi(1,i)-L)**2
-            else if ((geomi(1,atom)-geomi(1,i)).lt.(-L/2.d0)) then
-                r2mod(i) = (geomi(1,atom)-geomi(1,i)+L)**2
-            else
-                r2mod(i) = (geomi(1,atom)-geomi(1,i))**2
-            endif
-
-            ! Cartesian coordinate Y
-            if ((geomi(2,atom)-geomi(2,i)).gt.L/2.d0) then
-                r2mod(i) = r2mod(i) + (geomi(2,atom)-geomi(2,i)-L)**2
-            else if ((geomi(2,atom)-geomi(2,i)).lt.(-L/2.d0)) then
-                r2mod(i) = r2mod(i) + (geomi(2,atom)-geomi(2,i)+L)**2
-            else
-                r2mod(i) = r2mod(i) + (geomi(2,atom)-geomi(2,i))**2
-            endif
-
-            ! Cartesian coordinate Z
-            if ((geomi(3,atom)-geomi(3,i)).gt.L/2.d0) then
-                r2mod(i) = r2mod(i) + (geomi(3,atom)-geomi(3,i)-L)**2
-            else if ((geomi(3,atom)-geomi(3,i)).lt.(-L/2.d0)) then
-                r2mod(i) = r2mod(i) + (geomi(3,atom)-geomi(3,i)+L)**2
-            else
-                r2mod(i) = r2mod(i) + (geomi(3,atom)-geomi(3,i))**2
-            endif
-
+            call pbc(n, geomi, L, atom, i, dx, dy, dz)
+            r2mod(i) = dx**2 + dy**2 + dz**2
             ! The value of dV is computed for the implied distances
             dV = dV + 1.d0/r2mod(i)**6 - 1.d0/r2mod(i)**3 &
             - 1.d0/r2(atom-1,i)**6 + 1.d0/r2(atom-1,i)**3
         enddo
 
         do i = atom+1, n
-            ! Periodic boundary conditions using the nearest image convention apply over the 
-            ! modified coordinates
-
-            ! Cartesian coordinate X
-            if ((geomi(1,i)-geomi(1,atom)).gt.L/2.d0) then
-               r2mod(i-1) = (geomi(1,i)-geomi(1,atom)-L)**2
-            else if ((geomi(1,i)-geomi(1,atom)).lt.(-L/2.d0)) then
-               r2mod(i-1) = (geomi(1,i)-geomi(1,atom)+L)**2
-            else
-               r2mod(i-1) = (geomi(1,i)-geomi(1,atom))**2
-            endif
-            
-            ! Cartesian coordinate Y
-            if ((geomi(2,i)-geomi(2,atom)).gt.L/2.d0) then
-               r2mod(i-1) = r2mod(i-1) + (geomi(2,i)-geomi(2,atom)-L)**2
-            else if ((geomi(2,i)-geomi(2,atom)).lt.(-L/2.d0)) then
-               r2mod(i-1) = r2mod(i-1) + (geomi(2,i)-geomi(2,atom)+L)**2
-            else
-               r2mod(i-1) = r2mod(i-1) + (geomi(2,i)-geomi(2,atom))**2
-            endif
-
-            ! Cartesian coordinate Z
-            if ((geomi(3,i)-geomi(3,atom)).gt.L/2.d0) then
-               r2mod(i-1) = r2mod(i-1) + (geomi(3,i)-geomi(3,atom)-L)**2
-            else if ((geomi(3,i)-geomi(3,atom)).lt.(-L/2.d0)) then
-               r2mod(i-1) = r2mod(i-1) + (geomi(3,i)-geomi(3,atom)+L)**2
-            else
-               r2mod(i-1) = r2mod(i-1) + (geomi(3,i)-geomi(3,atom))**2
-            endif
-
+            call pbc(n, geomi, L, i, atom, dx, dy, dz)
+            r2mod(i-1) = dx**2 + dy**2 + dz**2
+            ! The value of dV is computed for the implied distances
             dV = dV + (1.d0/r2mod(i-1)**6-1.d0/r2mod(i-1)**3- & 
             1.d0/r2(i-1,atom)**6+1.d0/r2(i-1,atom)**3)
         enddo
-            
-        !do i = 1, atom-1
-            ! Call subroutine pbc to compute the square of interatomic distance between the
-            ! pair of atoms i and j
-        !    call pbc(n, geomi, L, r2mod, atom, i)
-
-            ! The value of dV is computed for the implied distances
-        !    dV = dV + 1.d0/r2mod(i)**6 - 1.d0/r2mod(i)**3 &
-        !    - 1.d0/r2(atom-1,i)**6 + 1.d0/r2(atom-1,i)**3
-        !enddo
-
-        !do i = atom+1, n
-            ! Call subroutine pbc to compute the square of interatomic distance between the
-            ! pair of atoms i and j
-        !    call pbc(n, geomi, L, r2mod, i, atom)
-
-        !    dV = dV + (1.d0/r2mod(i-1)**6-1.d0/r2mod(i-1)**3- & 
-        !    1.d0/r2(i-1,atom)**6+1.d0/r2(i-1,atom)**3)
-        !enddo
 
         dV = 4.d0*dV
 
@@ -338,12 +282,22 @@ module LJfluid
 
         ! Declaration statements
         implicit none
+        ! counter = Monte Carlo step
+        ! kmax = total number of r+dr intervals 
+        ! samplMC = number of Monte Carlo sweeps used to calculate g(r)
+        ! maxcycle = number of MC cycles, set by the user in the main.
+        ! therm = MC cycles used for thermalization
+        ! dr = random displacement of one particle (tagged with atom) in the trial move
+        ! dat = 4 column, kmax rows matrix which stores each value of r+dr in the first column,
+        !       the number of particles in each spherical shell in the second, the volume of 
+        !       each spherical shell in the third and g(r) in the fourth.
+        ! aux = auxiliar variable used to calculate the random atom
+        ! a = random number used to accept or not a trial move when dV > 0
+        ! T = temperature
+        ! increment = dr used in the computation of g(r) 
         ! rho = mean density of the fluid of particles N/V 
         ! pi = 3.1416...
-        ! maxcycle = number of MC cycles, set by the user in the main.
-        ! dr = random displacement of one particle (tagged with atom) in the trial move
-        ! dV = energy change for the corresponding trial move dr
-        ! T = temperature
+        ! t0 and tf = initial and final cpu_time
         integer :: i, j, k, counter, atom, kmax, samplMC
         integer, intent(in) :: n, maxcycle, therm
         real(kind=8), dimension(3,n) :: geom0, geomi
@@ -386,10 +340,7 @@ module LJfluid
         increment = 0.04
         kmax = int(L/(2*increment))+1
 
-        ! The matrix dat is allocated. The required data will be stored in this matrix, i.e., the
-        ! first column will store k*increment = increment, 2*increment..., the second column
-        ! the number of structures on each spherical shell, the third column the volume of each 
-        ! spherical shell and the last one the value of g(r).
+        ! The matrix dat is allocated. 
         allocate(dat(4,kmax))
         ! The column which will store the volume is initialized with a number different from 
         ! zero to avoid zero in the denominators 
@@ -402,10 +353,10 @@ module LJfluid
 
         ! Initialization of the counter of MC cycles
         counter = 0
-
-        ! Initialization of the number of snapshots that will be use to compute g(r)
+        ! Initialization of the number of MC sweeps that will be use to compute g(r)
         samplMC = 0
 
+        write(*,*) "Monte Carlo simulation starts"
         do while (counter .lt. maxcycle) 
             ! Increment the counter of MC cycles in a unit
             counter = counter + 1
@@ -419,8 +370,7 @@ module LJfluid
             ! displacement of atom i, dr
             geomi = geom0
             geomi(:,atom) = geomi(:,atom)+dr
-            ! Apply the condition of restricted coordinates to the simulation box when the 
-            ! atom is moved dr
+            ! Apply the condition of restricted coordinates to the simulation box 
             do i = 1, 3
                 if (geomi(i,atom) .lt. 0.d0) then
                     geomi(i,atom) = geomi(i,atom) + L
@@ -469,10 +419,9 @@ module LJfluid
                     ! Trial move rejected
             endif
 
-            ! Uncomment to write the potential energy in output file V.out
-            !if (mod(counter,100*n) .eq. 0) then
-            !    write(25,*) counter, V 
-            !endif
+            if (mod(counter,100*n) .eq. 0) then
+                write(25,*) counter, V 
+            endif
 
             ! Pair correlation function g(r)
             ! The first MC steps are not considered (thermalization) set by the user in the main
@@ -494,6 +443,7 @@ module LJfluid
             endif
 
         enddo ! Monte Carlo end
+        write(*,*) "Monte Carlo simulation finishes"
 
         ! Calculate the mean number of structures between each (k-1)*increment, k*increment
         dat(2,:) = dat(2,:)/samplMC
@@ -511,7 +461,7 @@ module LJfluid
             write(27,'( "H", f10.6, f10.6, f10.6)' ) geom0(1,i), geom0(2,i), geom0(3,i)
         enddo
         call cpu_time(tf)
-        print '("Time = ",f10.5," seconds.")', tf-t0 
+        print '("Time = ",f10.5," seconds")', tf-t0 
 
         return
 

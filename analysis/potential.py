@@ -14,7 +14,7 @@ cycle = []
 pot = []
 
 f = open('V.out','r')
-for i in range(0,5):
+for i in range(0,7):
     line = f.readline()
 
 line = f.readline()
