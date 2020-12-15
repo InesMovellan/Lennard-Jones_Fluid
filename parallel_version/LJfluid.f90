@@ -3,7 +3,7 @@
 ! Serial version of the module.
 
 ! SUBROUTINE 1: initial_geom
-!               Sets the initial geometry for n Lennard-Jones particles in a cubic box, which 
+!               Sets the initial geometry for n Lennard-Jones particles in a cubic box, whose
 !               size (and also n) is chosen by the user in main.f90 
 
 ! SUBROUTINE 2: pbc
@@ -35,14 +35,15 @@ module LJfluid
     implicit none
     public :: initial_geom, pbc, initial_V, delta_V, montecarlo
     contains
+
     ! List of common variables. Variables which are particular of each subroutine are described
     ! on the subroutine
 
-    ! integers i, j and k in subroutines are counters for the do loops
+    ! integers i, j and k in subroutines are steps for the do loops
     ! n = number of particles in the simulation box
     ! L = box side length
-    ! dx, dy, dz = difference between x, y and z coordinates of two particles when periodic 
-    !              boundary conditions are applied
+    ! dx, dy, dz = cartesian coordinate differences for a pair of atoms i and j, dx = xi - xj,
+    !              calculated using the nearest image convention
     ! V = potential energy of the system
     ! dV = energy change when a trial move is performed
     ! rc = cutoff radius from which the interaction between two atoms is neglected
@@ -50,6 +51,7 @@ module LJfluid
     ! geom0 = 3 columns, n rows matrix which contains the initial set of (X, Y, Z) coordinates 
     ! geomi = 3 columns, n rows matrix which store the cartesian coordinates (X, Y, Z) of each
     !         particle in each row, it changes for each trial move.
+    ! geom = 3 columns, n rows matrix of the cartesian coordinates used in pbc subroutine.
     ! r2 = triangular matrix which store the value of the square of the distance between each
     !      pair of particles rij^2
     ! atom = particle over which a trial move is performed on each Monte Carlo cycle
@@ -65,7 +67,7 @@ module LJfluid
     subroutine initial_geom(n,L,geom0,nthr)
     
         ! Declaration statements
-        ! r = interatomic distance
+        ! r = interatomic distance for a pair of particles i and j
         implicit none
         integer :: i, j, nthr
         integer, intent(in) :: n
@@ -81,7 +83,6 @@ module LJfluid
         ! x3  y3  z3
         !     :
         ! xn  yn  zn
-        ! The matrix geom0 is allocated
         allocate(geom0(3,n))
         ! The matrix geom0 is filled with random coordinates of the particles, all of them within
         ! (0, L) range, checking that the particles are not too much closer, i.e., interatomic
@@ -94,7 +95,7 @@ module LJfluid
         !$omp parallel shared(geom0) private(i,j,dx,dy,dz)
         nthr = omp_get_num_threads()                            
         !$omp master                                           
-            write (*,*) "Using this number of threads:",nthr   
+            write (*,*) "Number of threads used:",nthr   
         !$omp end master                                       
         !$omp do                                                
         do i = 2, n
@@ -112,7 +113,7 @@ module LJfluid
         !$omp end parallel
 
         ! The initial geometry is written in intial_geom.xyz file (following the format of .xyz
-        ! files), which can be read with 3D visualization programs.
+        ! files), which can be read with 3D visualization programs (vesta, vmd).
         open(23, file="initial_geom.xyz", action="write")
         write(23,'(I4)') n
         write(23,*) " "
@@ -135,7 +136,6 @@ module LJfluid
     subroutine pbc(n, geom, L, i, j, dx, dy, dz)
 
         ! Declaration statements
-        ! geom = matrix which stores the cartesian coordinates of each particle
         implicit none
         integer, intent(in) :: n, i, j
         real(kind=8), dimension(3,n), intent(in) :: geom
@@ -144,9 +144,8 @@ module LJfluid
 
 
         ! Execution zone
-        ! Periodic boundary conditions using the nearest image convention in which
-        ! we compute the square of the distance of a pair of atoms (i and j) which interatomic
-        ! distance is lower than L/2.
+        ! Periodic boundary conditions using the nearest image convention, i.e., considering the  
+        ! replicas of atom j that are closer to atom i.
 
         ! Cartesian coordinate X
         if (geom(1,i)-geom(1,j).gt.L/2.d0) then
@@ -156,7 +155,6 @@ module LJfluid
         else
             dx = geom(1,i)-geom(1,j)
         endif
-
         ! Cartesian coordinate Y
         if (geom(2,i)-geom(2,j).gt.L/2.d0) then
             dy = geom(2,i)-geom(2,j)-L
@@ -165,7 +163,6 @@ module LJfluid
         else
             dy = geom(2,i)-geom(2,j)
         endif
-
         ! Cartesian coordinate Z
         if (geom(3,i)-geom(3,j).gt.L/2.d0) then
             dz = geom(3,i)-geom(3,j)-L
@@ -207,7 +204,7 @@ module LJfluid
 
         !$omp parallel shared(r2) private(i,j,dx,dy,dz), reduction(+:V)   
         !$omp master                                           
-            write (*,*) "Using this number of threads:",omp_get_num_threads() 
+            write (*,*) "Number of threads used:",omp_get_num_threads() 
         !$omp end master                                       
         !$omp do                                                 
         do i = 2, n
@@ -258,9 +255,11 @@ module LJfluid
         dV = 0.d0
         r2mod = 0.d0
 
-        ! The evaluation of dV is computed using two do loops, one for the modified terms 
-        ! r2(atom-1,i), i.e. r(atom-1,1), r(atom-1,2)... until i = atom-1, and the other for the
-        ! terms r2(i, atom) for i > atom, i.e. r2(atom+1,atom), r2(atom+2,atom)... until i = n.
+        ! The evaluation of dV is computed using two do loops
+        ! First do: calculates the change in energy due to the interatomic distances that
+        ! depend on particles 1, 2, 3,... atom-1, i.e., r(atom-1,i)
+        ! Second do: calculates the change in energy due to the interatomic distances that
+        ! depend on particles atom+1, atom+2, atom+3,... n, i.e., r(i-1,atom)
         ! This can be done also with a do loop from 1 to n and an if-else inside the loop but it 
         ! is more computationally expensive.
         !$omp parallel shared(r2mod) private(i,dx,dy,dz), reduction(+:dV)    
@@ -268,7 +267,7 @@ module LJfluid
         do i = 1, atom-1
             call pbc(n, geomi, L, atom, i, dx, dy, dz)
             r2mod(i) = dx**2 + dy**2 + dz**2
-            ! The value of dV is computed for the implied distances
+            ! The value of dV is computed for the distances involved
             dV = dV + 1.d0/r2mod(i)**6 - 1.d0/r2mod(i)**3 &
             - 1.d0/r2(atom-1,i)**6 + 1.d0/r2(atom-1,i)**3
         enddo
@@ -280,7 +279,6 @@ module LJfluid
         do i = atom+1, n
             call pbc(n, geomi, L, i, atom, dx, dy, dz)
             r2mod(i-1) = dx**2 + dy**2 + dz**2
-            ! The value of dV is computed for the implied distances
             dV = dV + (1.d0/r2mod(i-1)**6-1.d0/r2mod(i-1)**3- & 
             1.d0/r2(i-1,atom)**6+1.d0/r2(i-1,atom)**3)
         enddo
@@ -306,13 +304,13 @@ module LJfluid
 
         ! Declaration statements
         implicit none
-        ! counter = Monte Carlo step
+        ! step = Monte Carlo step
         ! kmax = total number of r+dr intervals 
         ! samplMC = number of Monte Carlo sweeps used to calculate g(r)
-        ! maxcycle = number of MC cycles, set by the user in the main.
+        ! maxcycle = total number of MC cycles, set by the user in the main.
         ! therm = MC cycles used for thermalization
         ! dr = random displacement of one particle (tagged with atom) in the trial move
-        ! dat = 4 column, kmax rows matrix which stores each value of r+dr in the first column,
+        ! dat = 4 column kmax rows matrix which stores each value of r+dr in the first column,
         !       the number of particles in each spherical shell in the second, the volume of 
         !       each spherical shell in the third and g(r) in the fourth.
         ! aux = auxiliar variable used to calculate the random atom
@@ -322,7 +320,7 @@ module LJfluid
         ! rho = mean density of the fluid of particles N/V 
         ! pi = 3.1416...
         ! t0 and tf = initial and final cpu_time
-        integer :: i, j, k, counter, atom, kmax, samplMC
+        integer :: i, j, k, step, atom, kmax, samplMC
         integer, intent(in) :: n, maxcycle, therm, nthr
         real(kind=8), dimension(3,n) :: geom0, geomi
         real(kind=8), dimension(n-1,n-1) :: r2
@@ -364,7 +362,6 @@ module LJfluid
         increment = 0.04
         kmax = int(L/(2*increment))+1
 
-        ! The matrix dat is allocated. 
         allocate(dat(4,kmax))
         ! The column which will store the volume is initialized with a number different from 
         ! zero to avoid zero in the denominators 
@@ -374,9 +371,11 @@ module LJfluid
         do k = 1, kmax
             dat(1,k) = k*increment
         enddo
-
-        ! Initialization of the counter of MC cycles
-        counter = 0
+        ! Compute the volume of spherical shell dV V(r+increment)-V(r)
+        dat(3,:) = 4.d0*pi*(dat(1,:)**2)*increment
+        
+        ! Initialization of MC step
+        step = 0
         ! Initialization of the number of MC sweeps that will be use to compute g(r)
         samplMC = 0
 
@@ -384,9 +383,9 @@ module LJfluid
         call omp_set_num_threads(nthr)
 
         write(*,*) "Monte Carlo simulation starts"
-        do while (counter .lt. maxcycle) 
-            ! Increment the counter of MC cycles in a unit
-            counter = counter + 1
+        do while (step .lt. maxcycle) 
+            ! Increment the step of MC cycles in a unit
+            step = step + 1
 
             ! A random atom is chosen and displaced a random quantity between -0.02 and 0.02 units
             call random_number(aux)
@@ -446,13 +445,13 @@ module LJfluid
                     ! Trial move rejected
             endif
 
-            if (mod(counter,100*n) .eq. 0) then
-                write(25,*) counter, V 
+            if (mod(step,100*n) .eq. 0) then
+                write(25,*) step, V 
             endif
 
             ! Pair correlation function g(r)
             ! The first MC steps are not considered (thermalization) set by the user in the main
-            if (counter > therm .and. mod(counter,10*n) .eq. 0) then
+            if (step > therm .and. mod(step,10*n) .eq. 0) then
                 samplMC = samplMC + 1
                 !$omp parallel shared(dat), private(i,j,k)
                 !$omp do 
@@ -463,9 +462,6 @@ module LJfluid
                             ! Compute the number of particles on each interval dN 
                             ! N(r+increment)-N(r)
                             dat(2,k) = dat(2,k) + 2
-                            ! Compute the volume of spherical shell dV 
-                            ! V(r+increment)-V(r)
-                            dat(3,k) = 4.d0*pi*r2(i-1,j)*increment
                         endif
                     enddo
                 enddo
