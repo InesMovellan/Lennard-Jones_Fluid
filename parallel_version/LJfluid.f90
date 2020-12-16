@@ -488,7 +488,7 @@ module LJfluid
             write(27,'( "H", f10.6, f10.6, f10.6)' ) geom0(1,i), geom0(2,i), geom0(3,i)
         enddo
         tf = omp_get_wtime()
-        print '("Time = ",f10.5," seconds")', tf-t0 
+        print '("Time parallel = ",f10.5," seconds")', tf-t0 
 
         return
 

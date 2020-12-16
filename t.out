@@ -3,18 +3,29 @@ Thermalization = 10**6
 L = 6
 N = 100
 Time serial =   68.89130 seconds
+Time parallel (2 procs) =   72.97424 seconds
+Time parallel (4 procs) =   98.59916 seconds
 
 MC steps = 10**7
 Thermalization = 10**6
 L = 6
 N = 150
+Time serial =  105.68717 seconds
+Time parallel (2 procs) =   97.40377 seconds
+Time parallel (4 procs) =  132.53215 seconds
 
 MC steps = 10**7
 Thermalization = 10**6
 L = 6
 N = 200
+Time serial =  139.09975 seconds
+Time parallel (2 procs) =  116.44871 seconds
+Time parallel (4 procs) =  102.27648 seconds
 
 MC steps = 10**7
 Thermalization = 10**6
 L = 6
 N = 250
+Time serial =  174.52871 seconds
+Time parallel (2 procs) =  136.62408 seconds
+Time parallel (4 procs) =  115.93882 seconds

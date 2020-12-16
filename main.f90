@@ -28,7 +28,7 @@ program main
     ! Execution zone
     ! The user set the values of n, L rc, T and cycles. Magnitudes (L, rc and T) are in reduced
     ! units
-    n = 100
+    n = 250
     L = 6.d0
     rc = 3.d0
     T = 1.268

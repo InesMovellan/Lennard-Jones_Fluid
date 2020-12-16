@@ -30,13 +30,13 @@ program main
 
     ! The user set the values of n, L rc, T and cycles. Magnitudes (L, rc and T) are in reduce
     ! units
-    n = 200
+    n = 250
     L = 6.d0
     rc = 3.d0
     T = 1.268
     cycles = 10**7
     therm = 10**6
-    procs = 2
+    procs = 4
 
     ! Call initial_geom subroutine of LJfluid to set the initial coord(:,:) matrix
     call initial_geom(n, L, coord, procs)
