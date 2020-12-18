@@ -1,5 +1,10 @@
 Readme of the Lennard-Jones fluid simulation using Monte Carlo techniques
 
+Compile the program:
+~$ make
+Execute the program:
+~$ make exe
+
 Main results included in Lennard-Jones_fluid directory:
 - t.out: file which contains the times for the different simulations performed in serial and
   parallel
