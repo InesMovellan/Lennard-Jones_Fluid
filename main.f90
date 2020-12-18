@@ -24,22 +24,20 @@ program main
     real(kind=8), allocatable :: coord(:,:)
     real(kind=8) :: L, rc, V, Vrc, T
 
-
     ! Execution zone
     ! The user set the values of n, L rc, T and cycles. Magnitudes (L, rc and T) are in reduced
     ! units
-    n = 250
+    n = 150
     L = 6.d0
     rc = 3.d0
-    T = 1.268
+    T = 1.45
+    ! For MC simulation, one can choose, for example,  5*10**6 or 10**7 total cycles and 10**6
+    ! thermalization (equilibration) cycles
     cycles = 10**7
     therm = 10**6
-
     ! Call initial_geom subroutine of LJfluid to set the initial coord(:,:) matrix
     call initial_geom(n, L, coord)
-
     ! Call montecarlo subroutine of LJfluid to perform the simulation of the fluid
     call montecarlo(n, coord, L, rc, V, Vrc, T, cycles, therm)
-
     
 end program main

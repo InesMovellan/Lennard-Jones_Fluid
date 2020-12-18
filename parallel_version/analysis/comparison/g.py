@@ -6,176 +6,194 @@ from scipy.interpolate import interp1d
 
 font = {'family' : 'serif',   
         'weight' : 'normal',  
-        'size' : '16'         
+        'size' : '14'         
        }                      
 plt.rc('font', **font)        
 
-inc = []
-g100 = []
-g150 = []
-g200 = []
-g250 = []
-g4100 = []
-g4150 = []
-g4200 = []
-g4250 = []
-gs100 = []
-gs150 = []
-gs200 = []
-gs250 = []
+r = []
+g = []
+rp2 = []
+gp2 = []
+rp4 = []
+gp4 = []
+r1 = []
+g1 = []
+r1p2 = []
+g1p2 = []
+r1p4 = []
+g1p4 = []
+r2 = []
+g2 = []
+r2p2 = []
+g2p2 = []
+r2p4 = []
+g2p4 = []
+
+f = open('g_100_particles.out','r')
+# Read title and comment lines
+for i in range(0,5):
+    line = f.readline()
+# Store density and temperature to identify the result
+line = f.readline()
+l = line.split()
+rho = float(l[5])
+line = f.readline()
+l = line.split()
+T = float(l[3])
+# Read title and comment lines
+for i in range(0,6):
+    line = f.readline()
+# Read the data from the file: r and g(r)
+line = f.readline()
+while line:
+    l = line.split()
+    r.append(float(l[0]))
+    g.append(float(l[3]))
+    line = f.readline()
+f.close()
 
 f = open('g_100_particles_2.out','r')
-for i in range(0,7):
+# Read title and comment lines
+for i in range(0,13):
     line = f.readline()
+# Read the data from the file: r and g(r)
 line = f.readline()
 while line:
     l = line.split()
-    inc.append(float(l[0]))
-    g100.append(float(l[3]))
-    line = f.readline()
-f.close()
-
-f = open('g_150_particles_2.out','r')
-for i in range(0,7):
-    line = f.readline()
-line = f.readline()
-while line:
-    l = line.split()
-    g150.append(float(l[3]))
-    line = f.readline()
-f.close()
-
-f = open('g_200_particles_2.out','r')
-for i in range(0,7):
-    line = f.readline()
-line = f.readline()
-while line:
-    l = line.split()
-    g200.append(float(l[3]))
-    line = f.readline()
-f.close()
-
-f = open('g_250_particles_2.out','r')
-for i in range(0,7):
-    line = f.readline()
-line = f.readline()
-while line:
-    l = line.split()
-    g250.append(float(l[3]))
+    rp2.append(float(l[0]))
+    gp2.append(float(l[3]))
     line = f.readline()
 f.close()
 
 f = open('g_100_particles_4.out','r')
-for i in range(0,7):
+# Read title and comment lines
+for i in range(0,13):
     line = f.readline()
+# Read the data from the file: r and g(r)
 line = f.readline()
 while line:
     l = line.split()
-    g4100.append(float(l[3]))
-    line = f.readline()
-f.close()
-
-f = open('g_150_particles_4.out','r')
-for i in range(0,7):
-    line = f.readline()
-line = f.readline()
-while line:
-    l = line.split()
-    g4150.append(float(l[3]))
-    line = f.readline()
-f.close()
-
-f = open('g_200_particles_4.out','r')
-for i in range(0,7):
-    line = f.readline()
-line = f.readline()
-while line:
-    l = line.split()
-    g4200.append(float(l[3]))
-    line = f.readline()
-f.close()
-
-f = open('g_250_particles_4.out','r')
-for i in range(0,7):
-    line = f.readline()
-line = f.readline()
-while line:
-    l = line.split()
-    g4250.append(float(l[3]))
-    line = f.readline()
-f.close()
-
-f = open('g_100_particles.out','r')
-for i in range(0,7):
-    line = f.readline()
-line = f.readline()
-while line:
-    l = line.split()
-    gs100.append(float(l[3]))
+    rp4.append(float(l[0]))
+    gp4.append(float(l[3]))
     line = f.readline()
 f.close()
 
 f = open('g_150_particles.out','r')
-for i in range(0,7):
+# Read title and comment lines
+for i in range(0,5):
     line = f.readline()
+# Store density and temperature to identify the result
+line = f.readline()
+l = line.split()
+rho1 = float(l[5])
+line = f.readline()
+l = line.split()
+T1 = float(l[3])
+# Read title and comment lines
+for i in range(0,6):
+    line = f.readline()
+# Read the data from the file: r and g(r)
 line = f.readline()
 while line:
     l = line.split()
-    gs150.append(float(l[3]))
+    r1.append(float(l[0]))
+    g1.append(float(l[3]))
+    line = f.readline()
+f.close()
+
+f = open('g_150_particles_2.out','r')
+# Read title and comment lines
+for i in range(0,13):
+    line = f.readline()
+# Read the data from the file: r and g(r)
+line = f.readline()
+while line:
+    l = line.split()
+    r1p2.append(float(l[0]))
+    g1p2.append(float(l[3]))
+    line = f.readline()
+f.close()
+
+f = open('g_150_particles_4.out','r')
+# Read title and comment lines
+for i in range(0,13):
+    line = f.readline()
+# Read the data from the file: r and g(r)
+line = f.readline()
+while line:
+    l = line.split()
+    r1p4.append(float(l[0]))
+    g1p4.append(float(l[3]))
     line = f.readline()
 f.close()
 
 f = open('g_200_particles.out','r')
-for i in range(0,7):
+# Read title and comment lines
+for i in range(0,5):
     line = f.readline()
+# Store density and temperature to identify the result
+line = f.readline()
+l = line.split()
+rho2 = float(l[5])
+line = f.readline()
+l = line.split()
+T2 = float(l[3])
+# Read title and comment lines
+for i in range(0,6):
+    line = f.readline()
+# Read the data from the file: r and g(r)
 line = f.readline()
 while line:
     l = line.split()
-    gs200.append(float(l[3]))
+    r2.append(float(l[0]))
+    g2.append(float(l[3]))
     line = f.readline()
 f.close()
 
-f = open('g_250_particles.out','r')
-for i in range(0,7):
+f = open('g_200_particles_2.out','r')
+# Read title and comment lines
+for i in range(0,13):
     line = f.readline()
+# Read the data from the file: r and g(r)
 line = f.readline()
 while line:
     l = line.split()
-    gs250.append(float(l[3]))
+    r2p2.append(float(l[0]))
+    g2p2.append(float(l[3]))
     line = f.readline()
 f.close()
-#f = open('g_250_particles.out','r')
-#for i in range(0,7):
-#    line = f.readline()
-#line = f.readline()
-#while line:
-#    l = line.split()
-#    g250.append(float(l[3]))
-#    line = f.readline()
-#f.close()
 
-#fit = np.polyfit(inc,g,10)
-#inc1 = np.linspace(min(inc),max(inc))
-#g1 = fit[0]*inc1**3+fit[1]*inc1**2+fit[2]*inc1+fit[3]
-# Representation of the energy against the distortion coordinate
+f = open('g_200_particles_4.out','r')
+# Read title and comment lines
+for i in range(0,13):
+    line = f.readline()
+# Read the data from the file: r and g(r)
+line = f.readline()
+while line:
+    l = line.split()
+    r2p4.append(float(l[0]))
+    g2p4.append(float(l[3]))
+    line = f.readline()
+f.close()
+
+# Representation of g(r) against r
 fig = plt.figure()
 p = fig.add_subplot(111)
-#p.plot(inc,g,'ro', markersize=4)
-p.plot(inc,gs100,'r--', linewidth=2.0, label='100 atoms')
-p.plot(inc,gs150,'b--', linewidth=2.0, label='150 atoms')
-p.plot(inc,gs200,'g--', linewidth=2.0, label='200 atoms')
-p.plot(inc,gs250,'m--', linewidth=2.0, label='250 atoms')
-p.plot(inc,g100,'r', linewidth=2.0, label='100 atoms, 2 procs')
-p.plot(inc,g150,'b', linewidth=2.0, label='150 atoms, 2 procs')
-p.plot(inc,g200,'g', linewidth=2.0, label='200 atoms, 2 procs')
-p.plot(inc,g250,'m', linewidth=2.0, label='250 atoms, 2 procs')
-p.plot(inc,g4100,'ro', markersize=4, label='100 atoms, 4 procs')
-p.plot(inc,g4150,'bo', markersize=4, label='150 atoms, 4 procs')
-p.plot(inc,g4200,'go', markersize=4, label='200 atoms, 4 procs')
-p.plot(inc,g4250,'mo', markersize=4, label='250 atoms, 4 procs')
-plt.hlines(1.0,min(inc),max(inc), colors='k', linestyles='dashed')
+p.plot(r,g,'r', linewidth=1.5, label=r'$\rho$ = ' + str(rho) + ', T = ' +
+        str(T))
+p.plot(rp2,gp2,'r--', linewidth=1.5, label='2 procs')
+p.plot(rp4,gp4,'ro', markersize=2.0, label='4 procs')
+p.plot(r1,g1,'b', linewidth=1.5, label=r'$\rho$ = ' + str(rho1) + ', T = ' +
+        str(T1))
+p.plot(r1p2,g1p2,'b--', linewidth=1.5)
+p.plot(r1p4,g1p4,'bo', markersize=2.0)
+p.plot(r2,g2,'g', linewidth=1.5, label=r'$\rho$ = ' + str(rho2) + ', T = ' +
+        str(T2))
+p.plot(r2p2,g2p2,'g--', linewidth=1.5)
+p.plot(r2p4,g2p4,'go', markersize=2.0)
+plt.hlines(1.0,min(r),max(r), colors='k', linestyles='dashed', linewidth=1.5)
 axes = plt.gca()
-axes.set_xlim([min(inc),max(inc)])
+axes.set_xlim([min(r),max(r)])
 p.set_xlabel('r/$\sigma$') 
 p.set_ylabel('g(r)')   
 plt.title('Pair correlation function', fontsize=16)

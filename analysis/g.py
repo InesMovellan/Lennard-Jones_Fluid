@@ -10,38 +10,43 @@ font = {'family' : 'serif',
        }                      
 plt.rc('font', **font)        
 
-inc = []
-n = []
+r = []
 g = []
-f = open('g.out','r')
-for i in range(0,7):
-    line = f.readline()
 
+f = open('g_300_particles.out','r')
+# Read title and comment lines
+for i in range(0,5):
+    line = f.readline()
+# Store density and temperature to identify the result
+line = f.readline()
+l = line.split()
+rho = float(l[5])
+line = f.readline()
+l = line.split()
+T = float(l[3])
+# Read title and comment lines
+for i in range(0,6):
+    line = f.readline()
+# Read the data from the file: r and g(r)
 line = f.readline()
 while line:
     l = line.split()
-    inc.append(float(l[0]))
-    #g.append(float(l[1]))
+    r.append(float(l[0]))
     g.append(float(l[3]))
     line = f.readline()
 f.close()
 
-#n = np.asarray(n)
-#n = n/max(n)
-
-#fit = np.polyfit(inc,g,10)
-#inc1 = np.linspace(min(inc),max(inc))
-#g1 = fit[0]*inc1**3+fit[1]*inc1**2+fit[2]*inc1+fit[3]
-# Representation of the energy against the distortion coordinate
+# Representation of g(r) against r
 fig = plt.figure()
 p = fig.add_subplot(111)
-#p.plot(inc,g,'ro', markersize=4)
-p.plot(inc,g,'r', linewidth=2.0)
-plt.hlines(1.0,min(inc),max(inc), colors='k', linestyles='dashed')
+p.plot(r,g,'r', linewidth=2.0, label=r'$\rho$ = ' + str(rho) + ', T = ' +
+        str(T))
+plt.hlines(1.0,min(r),max(r), colors='k', linestyles='dashed', linewidth=1.5)
 axes = plt.gca()
-axes.set_xlim([min(inc),max(inc)])
+axes.set_xlim([min(r),max(r)])
 p.set_xlabel('r/$\sigma$') 
 p.set_ylabel('g(r)')   
 plt.title('Pair correlation function', fontsize=16)
+plt.legend()
 plt.show()
 fig.savefig('gr.png')

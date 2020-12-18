@@ -203,9 +203,6 @@ module LJfluid
         Vrc = 4*(1.d0/rc**12-1.d0/rc**6)
 
         !$omp parallel shared(r2) private(i,j,dx,dy,dz), reduction(+:V)   
-        !$omp master                                           
-            write (*,*) "Number of threads used:",omp_get_num_threads() 
-        !$omp end master                                       
         !$omp do                                                 
         do i = 2, n
             do j = 1, i-1
@@ -340,14 +337,27 @@ module LJfluid
         ! The mean density is computed
         rho = n/(L**3)
 
+        ! Comments are written in the output files V.out and g.out
         open(25, file="V.out", action="write")
-        write(25,*) "Potential energy of the fluid of Lennard Jones particles"
+        write(25,*) "Potential energy of the fluid of Lennard Jones particles."
+        write(25,*) "All variables are in reduced units"
+        write(25,*) " "
+        write(25,'( " Fluid of N = ", I4)') n 
+        write(25,'( " Box side length is L = ", f4.1)') L 
+        write(25,'( " Density of the fluid = ", f6.3)') rho
+        write(25,'( " Temperature T = ", f6.3)') T
         write(25,*) " "
         write(25,*) "Column 1: Monte Carlo step"
         write(25,*) "Column 2: Potential energy in reduced units"
         write(25,*) " "
         open(26, file="g.out", action="write")
         write(26,*) "Pair correlation function of the fluid of Lennard Jones particles"
+        write(26,*) "All variables are in reduced units"
+        write(26,*) " "
+        write(26,'( " Fluid of N = ", I4)') n 
+        write(26,'( " Box side length is L = ", f4.1)') L 
+        write(26,'( " Density of the fluid = ", f6.3)') rho
+        write(26,'( " Temperature T = ", f6.3)') T
         write(26,*) " "
         write(26,*) "Column 1: interatomic distance r in reduced units (r/sigma)"
         write(26,*) "Column 2: number of particles between each interval r+dr (dN)"

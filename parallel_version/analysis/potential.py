@@ -14,9 +14,14 @@ cycle = []
 pot = []
 
 f = open('V.out','r')
-for i in range(0,7):
+# Read the title and comment lines
+for i in range(0,11):
+    line = f.readline()
+# Uncomment to skip the first values of the potential energy
+for i in range(0,2):
     line = f.readline()
 
+# Read the potential energy for each MC cycle sampled and store them
 line = f.readline()
 while line:
     l = line.split()
@@ -25,13 +30,13 @@ while line:
     line = f.readline()
 f.close()
 
-# Representation of the energy against the distortion coordinate
+# Representation of the potential energy again the MC cycle sampled
 fig = plt.figure()
 p = fig.add_subplot(111)
 #p.plot(cycle,pot,'ro')
-p.plot(cycle,pot,'r', linewidth=1.0)
+p.plot(cycle,pot,'r', linewidth=1.5)
 axes = plt.gca()
-#axes.set_xlim([min(d),max(d)])
+axes.set_xlim([min(cycle),max(cycle)])
 p.set_xlabel('Monte Carlo cycle') 
 p.set_ylabel('V (reduce units)')   
 plt.title('Potential energy', fontsize=16)

@@ -1,0 +1,39 @@
+Readme of the Lennard-Jones fluid simulation using Monte Carlo techniques
+
+Main results included in Lennard-Jones_fluid directory:
+- t.out: file which contains the times for the different simulations performed in serial and
+  parallel
+- grs.png: representation of g(r) for N = 100, 150 and 200 particles in a cubic box of side L = 6
+  obtained with serial and parallel (2 and 4 procs) codes.
+- grs_T.png: representation of g(r) for the same density and different values of temperature. 
+
+The serial version of the simulation is the module LJfluid.f90. To use this module the main.f90
+is needed, where the user can modify several variables as the number of particles, the volume or the 
+temperature as well as the number of MC cycles and equilibration cycles. 
+
+The parallel version of the code is contained in the parallel_version directory, where there are 
+also a LJfluid.f90 module (parallel simulation) and a main.f90 file, where the user can also
+modify the number of processors used in the simulation. 
+
+The output files provided by the simulation are initial_geom.xyz, final_geom.xyz (initial and final
+geometry of the particles in the cubic box that can be read by vesta or vmd), V.out (potential
+energy for a sample of MC steps) and g.out (pair correlation function g(r) of the system).
+
+Several results of serial and parallel versions are contained in analysis directories, included
+in Lennard-Jones_Fluid directory for the serial simulation and in 
+Lennard-Jones_Fluid/parallel_version for the parallel simulation. These results are the potential
+energy of a sample of MC steps and the pair correlation function for different densities. Python
+scripts used to make the plots are also contained in these directories (called g.py and 
+potential.py). The main results are contained in Lennard-Jones_Fluid. The output files are 
+labelled as follows:
+- Output files for potential energy: V_N_particles.out (serial) and V_N_particles_procs.out 
+  (parallel)
+- Output files for g(r): g_N_particles.out (serial) and g_N_particles_procs.out (parallel)
+- Representation of potential energy: V_vs_cycleMC_N_particles.png (serial) and 
+  V_vs_cycleMC_N_particles_procs.png (parallel)
+- Representation of g(r): gr_N_particles.png (serial) and gr_N_particles_procs.png (parallel)
+  N is the number of particles and procs the number of processors used in the simulation.
+
+Inside analysis directories there are comparison directories, where there are plots of pair 
+correlation functions with different densities and temperatures, which allow to compare the results
+obtained with the simulation. 

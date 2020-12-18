@@ -251,15 +251,19 @@ module LJfluid
             call pbc(n, geomi, L, atom, i, dx, dy, dz)
             r2mod(i) = dx**2 + dy**2 + dz**2
             ! The value of dV is computed for the distances involved
+            !if (r2mod(i) .le. 9.d0) then
             dV = dV + 1.d0/r2mod(i)**6 - 1.d0/r2mod(i)**3 &
             - 1.d0/r2(atom-1,i)**6 + 1.d0/r2(atom-1,i)**3
+            !endif
         enddo
 
         do i = atom+1, n
             call pbc(n, geomi, L, i, atom, dx, dy, dz)
             r2mod(i-1) = dx**2 + dy**2 + dz**2
+            !if (r2mod(i) .le. 9.d0) then
             dV = dV + (1.d0/r2mod(i-1)**6-1.d0/r2mod(i-1)**3- & 
             1.d0/r2(i-1,atom)**6+1.d0/r2(i-1,atom)**3)
+            !endif
         enddo
 
         dV = 4.d0*dV
@@ -317,14 +321,27 @@ module LJfluid
         ! The mean density is computed
         rho = n/(L**3)
 
+        ! Comments are written in the output files V.out and g.out
         open(25, file="V.out", action="write")
-        write(25,*) "Potential energy of the fluid of Lennard Jones particles"
+        write(25,*) "Potential energy of the fluid of Lennard Jones particles."
+        write(25,*) "All variables are in reduced units"
+        write(25,*) " "
+        write(25,'( " Fluid of N = ", I4)') n 
+        write(25,'( " Box side length is L = ", f4.1)') L 
+        write(25,'( " Density of the fluid = ", f6.3)') rho
+        write(25,'( " Temperature T = ", f6.3)') T
         write(25,*) " "
         write(25,*) "Column 1: Monte Carlo step"
         write(25,*) "Column 2: Potential energy in reduced units"
         write(25,*) " "
         open(26, file="g.out", action="write")
         write(26,*) "Pair correlation function of the fluid of Lennard Jones particles"
+        write(26,*) "All variables are in reduced units"
+        write(26,*) " "
+        write(26,'( " Fluid of N = ", I4)') n 
+        write(26,'( " Box side length is L = ", f4.1)') L 
+        write(26,'( " Density of the fluid = ", f6.3)') rho
+        write(26,'( " Temperature T = ", f6.3)') T
         write(26,*) " "
         write(26,*) "Column 1: interatomic distance r in reduced units (r/sigma)"
         write(26,*) "Column 2: number of particles between each interval r+dr (dN)"
@@ -433,15 +450,12 @@ module LJfluid
                             ! Compute the number of particles on each interval dN 
                             ! N(r+increment)-N(r)
                             dat(2,k) = dat(2,k) + 2
-                            ! Compute the volume of spherical shell dV 
-                            ! V(r+increment)-V(r)
-                            ! dat(3,k) = 4.d0*pi*r2(i-1,j)*increment
                         endif
                     enddo
                 enddo
             endif
 
-        enddo ! Monte Carlo end
+        enddo ! Monte Carlo ends
         write(*,*) "Monte Carlo simulation finishes"
 
         ! Calculate the mean number of structures between each (k-1)*increment, k*increment
@@ -460,7 +474,7 @@ module LJfluid
             write(27,'( "H", f10.6, f10.6, f10.6)' ) geom0(1,i), geom0(2,i), geom0(3,i)
         enddo
         call cpu_time(tf)
-        print '("Time = ",f10.5," seconds")', tf-t0 
+        print '("Time serial = ",f10.5," seconds")', tf-t0 
 
         return
 
